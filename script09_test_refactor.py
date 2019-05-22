@@ -75,7 +75,7 @@ if __name__ == '__main__' :
             # Calculate the histogram via histogram algorithm
             diameter_alg_hist = HistogramAlg.diameter_algorithm(
                 species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph,
-                False, False)
+                False, False, verify=True)
 
             # If there is a mismatch, print the details and save the tree that causes
             # the error to a folder called errorTrees.

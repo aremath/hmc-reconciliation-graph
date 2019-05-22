@@ -374,7 +374,7 @@ def make_group_dict(gene_tree, dtl_recon_graph, postorder_species_nodes):
     return postorder_group
 
 
-def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_a, dtl_recon_graph_b, debug, zero_loss):
+def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_a, dtl_recon_graph_b, debug, zero_loss, verify=False):
     """
     This function finds the diameter of a reconciliation graph, as measured by the largest symmetric set difference
      of any two reconciliation trees inside of a reconciliation graph. While you can get standard diameter behaviour
@@ -393,7 +393,8 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
 
     # Use debugging
     assert(dtl_recon_graph_a == dtl_recon_graph_b)
-    verfier = BFVerifier(dtl_recon_graph_a)
+    if verify:
+        verfier = BFVerifier(dtl_recon_graph_a)
 
     postorder_gene_nodes = list(gene_tree.keys())
     postorder_species_nodes = list(species_tree.keys())
@@ -448,7 +449,8 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
                                                             uB_loss_events, hist_both_exit, exit_table_a, exit_table_b)
                 else:
                     raise ValueError("Invalid ancestry type '{0}', check calculate_ancestral_table().".format(ancestry))
-                verfier.verify_enter(uA, uB, hist)
+                if verify:
+                    verfier.verify_enter(uA, uB, hist)
                 enter_table[u][uA][uB] = hist
                 if debug:
                     print "{0} -{1}-> {2}, Double-equal\t{3}\Hist:{4}".format(uA, ancestry, uB, hist_both_exit,
