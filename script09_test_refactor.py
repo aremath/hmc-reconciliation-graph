@@ -11,7 +11,7 @@ of each.
 import DTLReconGraph
 import ReconciliationVisualization
 import Diameter
-import HistogramAlgDebugRefactor
+import HistogramAlg
 import HistogramAlgTools
 from Histogram import Histogram
 import itertools
@@ -73,7 +73,7 @@ if __name__ == '__main__' :
                 = Diameter.reformat_tree(edge_species_tree, "hTop")
 
             # Calculate the histogram via histogram algorithm
-            diameter_alg_hist = HistogramAlgDebugRefactor.diameter_algorithm(
+            diameter_alg_hist = HistogramAlg.diameter_algorithm(
                 species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph,
                 False, False)
 
