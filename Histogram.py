@@ -60,7 +60,7 @@ class Histogram:
                 new_dict[key] += hist.histogram_dict[key]
         return Histogram(new_dict)
     
-    def product_combine(self, other, doubleBothNonzeroEntry, doubleAnyNonzeroEntry):
+    def product_combine(self, other, n_choices):
         '''
         Generally, combine would work like this:
         {0:1} * {3:1}  => {3:1}
@@ -70,8 +70,8 @@ class Histogram:
         the same mapping node, we multiply the number of
         histograms by 2 if the indeces are not 0.
 
-        #TODO: maybe rename to convolusion, rewrite the test, rewrite the docstring
         '''
+        #TODO: maybe rename to convolution, rewrite the test, rewrite the docstring
         new_dict = {}
 
         old_dict_A = self.histogram_dict
@@ -84,12 +84,16 @@ class Histogram:
                 new_key = old_key_A + old_key_B
                 if new_key not in new_dict:
                     new_dict[new_key] = 0
-                if doubleAnyNonzeroEntry and (old_key_A != 0 or old_key_B != 0):
-                    new_dict[new_key] += old_dict_A[old_key_A] * old_dict_B[old_key_B] * 2
-                elif doubleBothNonzeroEntry and old_key_A != 0 and old_key_B != 0:
-                    new_dict[new_key] += old_dict_A[old_key_A] * old_dict_B[old_key_B] * 2
-                else:
-                    new_dict[new_key] += old_dict_A[old_key_A] * old_dict_B[old_key_B]
+                # Determine how many choices
+                local_choices = n_choices
+                if old_key_A == 0:
+                    local_choices -= 1
+                if old_key_B == 0:
+                    local_choices -= 1
+                if local_choices < 0:
+                    local_choices = 0
+                n_pairs = old_dict_A[old_key_A] * old_dict_B[old_key_B]
+                new_dict[new_key] += n_pairs * (2**local_choices)
 
         return Histogram(new_dict)
 

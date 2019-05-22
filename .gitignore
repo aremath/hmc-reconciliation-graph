@@ -7,3 +7,7 @@ example*
 *.pyc
 htmlcov*/**
 **/*.png
+errorTrees
+*.swp
+out.txt
+

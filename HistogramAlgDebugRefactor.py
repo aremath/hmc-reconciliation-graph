@@ -166,7 +166,6 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
             for e_b in uB_exit_events:
                 # B1 and B2 are the species nodes of the two mapping nodes of e_b
                 # We need to account for the case that the children of u are in opposite order between the two events
-
                 if uA == uB and e_b > e_a:
                     continue
                 if child1 == e_b[1][0]:
@@ -176,6 +175,7 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
                     B1 = e_b[2][1]
                     B2 = e_b[1][1]
                 # Now, we need to turn the species nodes into the correct mapping nodes
+                #TODO: why reconstruct these like this instead of just doing ex u1A = e_a[1]
                 u1A = (child1, A1)
                 u1B = (child1, B1)
                 u2A = (child2, A2)
@@ -184,12 +184,20 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
                 # supersede this one
                 left_entry = enter_table[child1][u1A][u1B]
                 right_entry = enter_table[child2][u2A][u2B]
-                # TODO: I think there are many cases for this and this part of the code
-                #       should be written with mroe clarity.
-                doubleBothNonzeroEntry = (uA == uB and e_a == e_b) or (u1A == u1B or u2A == u2B)
-                doubleAnyNonzeroEntry = uA != uB and u1A == u1B and u2A == u2B
-                this_hist = left_entry.product_combine(
-                    right_entry, doubleBothNonzeroEntry, doubleAnyNonzeroEntry)
+                # Techically n_choices encodes the number of choices beyond the first.
+                n_choices = 0
+                # 1 choice means either a choice about both children but not the event, or about the event and only one child.
+                if (uA == uB and e_a == e_b) or (u1A == u1B or u2A == u2B):
+                    n_choices = 1
+                # 2 choices means a choice about both children AND the event.
+                if u1A == u1B and u2A == u2B and e_a != e_b:
+                    #print("2 choices with: " + str(e_a) + " | " + str(e_b))
+                    n_choices = 2
+                this_hist = left_entry.product_combine(right_entry, n_choices)
+                #print("Hists")
+                #print(left_entry)
+                #print(right_entry)
+                #print(this_hist)
                 if e_a != e_b:
                     this_hist = this_hist << (cost(e_a, zero_loss) + cost(e_b, zero_loss))
                 else:
@@ -261,7 +269,6 @@ def calculate_equal_enter_hist(zero_loss, enter_table, u, uA, uA_loss_events, uB
                 hists.append(enter_table[u][(u, a_child)][(u, b_child)] << 2)
             elif a_child == b_child:
                 hists.append(enter_table[u][(u, a_child)][(u, b_child)])
-            
 
     for event in uA_loss_events:
         a_child = event[1][1]
@@ -313,6 +320,10 @@ def calculate_ancestral_enter_hist(zero_loss, is_swapped, enter_table, u, uA, uA
         enter_hists = [exit_table_a[u][uA][uB]]
         for event in uA_loss_events:
             a_child = event[1][1]
+            # Double the nonzero entries if one node is the direct child of the other through the loss event.
+            # This occurs because order matters when considering a pair of sub-reconciliations rooted at the child.
+            # Either of those sub-reconciliations may be given the loss event and used as the sub-reconciliation
+            # rooted at the parent.
             if (u, a_child) == uB:
                 event_enter = enter_table[u][(u, a_child)][uB].double_nonzero_entry()
             else:
@@ -413,7 +424,7 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
                                                             uB, dtl_recon_graph_b)
 
                 # Look up ancestry string in the precomputed table (indexed by the species nodes of the mapping nodes)
-                ancestry = ancestral_table[uA[1]][uB[1]]
+                ancestry = ancestral_table[uA[1]][uB[1]] 
 
                 uA_loss_events = filter(lambda event: isinstance(event, tuple) and event[0] == 'L',
                                         dtl_recon_graph_a[uA])
