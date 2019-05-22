@@ -1,12 +1,12 @@
 # dtldiameter
 
-Note that all of the included code was created using Python 2.7. Users wishing to run these programs on a machine that has a later version of Python may experience several syntax-related errors.
+Note that all of the included code was created using Python 2.7. Users wishing to run these programs on a later version of Python may experience errors.
 
 ## How to use DTLReconGraph.py
 
 ### From the Command Line:
 
-After typing `python DTLReconGraph.py`, one should enter the values for:
+After typing `python DTLReconGraph.py`, enter the values for:
 
   * The name of the file in which the data are stored and
   * The costs of duplication, transfer, and loss, 
@@ -15,17 +15,15 @@ in that order. If the user doesn't give input in the expected form, a usage stat
   * Two newick trees (formatted, for example, as ((C,D)B,E)A if A has children B and E and B has children C and D) on separate lines, with the species/host tree given first and the gene/parasite tree second, and
   * Mappings between all of the tips of the two trees (formatted, for example, c:C; d:D; e:E if c maps to C, d to D and e to E), with a different one on each line.
 
-This code then prints: 
+The output is:
   * Two Python dictionaries in the format {(parent, child):(parent, child, child 1 of child, child 2 of child):, ...}, where parent is a node in the tree, child is one of parent's children, and children 1 and 2 of child represent children of the child of parent (in other words, grandchildren of the parent) - one for each of the two trees used as input. This is essentially a dictionary representation of the two trees given as input;
   * A Python dictionary with mapping nodes as keys and lists of event nodes that apply to those mapping nodes in a Maximum Parsimony Reconciliation as values, which has the format {(gene node, species node): [(event string, resulting mapping node 1, resulting mapping node 2), minimum cost], ...}. In this representation, the gene and species node values represent the nodes in the given newick trees that are being mapped to each other in the reconciliation; the event string is a character ('D', 'T', 'L', 'C', or 'S', representing duplication, transfer, loss, contemporary event, and speciation, respectively) representing the event that those mapped nodes undergo; lastly, the resulting mapping nodes are the mappings that are induced in the next 'level' of the reconciliation graph as a result of the given event;
   * The number of Maximum Parsimony Reconciliations for the given data set and costs, as an integer
   * A list of mapping nodes we could use to root the gene tree to produce a maximum parsimony reconciliation
 
-Note each of these printed values is separated by a blank line, so the output is easily readable by a user.
-
 ### Via Interactive Mode:
 
-One should simply type `python -i DTLReconGraph.py` to access the contents of the code. From there, all major and helper functions will be available, however the two most important are DP and reconcile. 
+`python -i DTLReconGraph.py` will access the code in interactive mode. From there, all major and helper functions will be available, however the two most important are DP and reconcile. 
 
 #### DP
 
@@ -33,7 +31,7 @@ DP is the workhorse of the code - it utilizes several helper functions to actual
 
 #### Reconcile
 
-Reconcile is the more practically useful function. Since the data are implemented as newick trees and mappings, reconcile utilizes a separate module that both handles getting the data from a separate file and reformats the inputs to work nicely with DP. Reconcile reformat the species and gene trees to match the output format given in the section on running from the command line, and prints out these trees along with the reconciliation graph, the number of Maximum Parsimony Reconciliations as an integer, and a list of mappings (as tuples) of gene nodes onto species nodes that could produce an MPR. Although one may play with any/all functions included in this file and those on which it depends, DP and reconcile are the most important functions.
+Reconcile is the more practically useful function. Since the data are implemented as newick trees and mappings, reconcile utilizes a separate module that both handles getting the data from a separate file and reformats the inputs to work nicely with DP. Reconcile reformats the species and gene trees to match the output format given in the section on running from the command line, and prints out these trees along with the reconciliation graph, the number of Maximum Parsimony Reconciliations, and a list of mappings of gene nodes onto species nodes that could produce an MPR.
 
 ## How to use RunTests.py
 
@@ -139,7 +137,7 @@ DTLMedian.py has the following usage pattern:
 
 > DTLMedian.py filename dup_cost transfer_cost loss_cost [-r] [-c]
 
-So, the user must enter the name of the file from which to take the data (in .newick format) as well as the costs associated with a duplication event, transfer event, and loss event, respectively. By default, all valid calls will return the full median reconciliation, however the user may add to the output by including the options shown below, with a newline separating each different value returned.
+`filename` is the path to a `.newick` file containing the two trees and the tip mapping. The cost parameters specify the relative frequency of duplication, transfer and loss. By default, all valid calls will return the full median reconciliation, however the user may add to the output by including the options shown below.
 
 #### Optional Flags
 
@@ -148,10 +146,6 @@ So, the user must enter the name of the file from which to take the data (in .ne
 * -c or --count: adds the number of single-path medians that could be derived from the full median reconciliation to the output
 
 If both of these options are selected, the order of the printed output is: the full median reconciliation, the number of medians, a randomly selected median.
-
-### Via Interactive Mode
-
-Although the user could access any and all functions within this file via interactive mode, there are no stand-alone functions that easily integrate basic information, such as a data file name, and can produce information about the median from the get-go. In order to make good use of the functions contained in this file, the user would need to have information from DTLReconGraph.py, such as a DTL reconciliation graph and the roots for the DTL reconciliation graph, since the functions in this file take the raw results in those forms.
 
 ## How To Use DataAnalysis.py
 
@@ -175,23 +169,21 @@ and the running time of
 * Calculating the diameter
 * Both combined
 
-and display them to the screen.
-
 #### Optional Flags
-These flags can be used to coax some additional functionality out of DataAnalysis.py, most importantly plots!
 
-`-p` will tell the program to show plots. By default, DataAnalysis will plot the normalized diameter against gene tree size and MPR count.
+`-p`: show plots. By default, DataAnalysis will plot the normalized diameter against gene tree size and MPR count.
 
-`-n` tells the program to include another plot that uses the non-normalized diameter.
+`-n`: include another plot that uses the non-normalized diameter.
 
-`-t` tells the program to include another plot that plots the timings of the different portions of Diameter.
+`-t`: include another plot that plots the timings of the different portions of Diameter.
 
-`-z` tells the program to also make all plots for a zero loss version of the logfile (it will look for one with the same name but ending in `\_zl`)
+`-z`: also make all plots for a zero loss version of the logfile (it will look for one with the same name but ending in `\_zl`)
 
-`-l` tells the program to use LaTeX for plot text rendering
+`-l`: LaTeX for plot text rendering
 
 In addition to those plot options, there are a couple more usable flags:
 
 `-c COMPARE_FILE` compares the given csv file with another one (`COMPARE_FILE`) that has the same calculated files in the same order. It will note any mismatches between the two file's diameters.
 
 `-k CHECK_PATH` compares the given csv file with the path that the newick files you originally reconciled reside (`CHECK_PATH`), and notifies you of any duplicate files in your log, or files in the path that are not in the log.
+
