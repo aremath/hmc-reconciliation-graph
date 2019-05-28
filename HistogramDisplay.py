@@ -1,23 +1,23 @@
 import numpy as np
 import matplotlib
+# Don't require an X-Server
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import csv
 
-def plot_histogram(plot_file, histogram, x_norm, y_norm):
-    if x_norm:
-        max_xval = float(max(histogram.keys()))
-        width = 1/max_xval
-        histogram = normalize_xvals(histogram)
-    else:
-        width = 1
-    if y_norm:
-        histogram = normalize_yvals(histogram)
+def plot_histogram(plot_file, histogram, width):
     plt.bar(histogram.keys(), histogram.values(), width)
     # plt.xlabel
     # plt.ylabel
     # plt.title
     plt.savefig(plot_file)
     plt.clf()
+
+def csv_histogram(csv_file, histogram):
+    with open(csv_file, 'w') as csv_handle:
+        writer = csv.writer(csv_handle)
+        for key, value in histogram.items():
+            writer.writerow([key, value])
 
 def normalize_xvals(histogram):
     max_xval = float(max(histogram.keys()))
@@ -32,4 +32,32 @@ def normalize_yvals(histogram):
         return histogram
     new_hist = { k : v/total_yval for k,v in histogram.items() }
     return new_hist
+
+def cumulative(histogram):
+    total = 0
+    new_hist = {}
+    for k, v in histogram.items():
+        new_hist[k] = v + total
+        total += v
+    return new_hist
+
+def omit_zeros(histogram):
+    return { k : v for k,v in histogram.items() if k != 0 }
+
+def compute_stats(histogram):
+    # Diameter of MPR-space
+    # Average distance between MPRs and standard deviation
+    diameter = max(histogram.keys())
+    flat_h = flatten(histogram)
+    flat_h = np.asarray(flat_h)
+    mean = flat_h.mean()
+    std = flat_h.std()
+    return diameter, mean, std
+
+def flatten(histogram):
+    l = []
+    for k, v in histogram.keys():
+        for i in range(v):
+            l.append(v)
+    return l
 
