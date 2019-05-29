@@ -65,37 +65,41 @@ def process_args():
         assert c.suffix == ".csv"
     return args
 
-def main():
-    args = process_args()
-
+def calc_histogram(newick, d, t, l, time_it):
     # From the newick tree create the reconciliation graph
     edge_species_tree, edge_gene_tree, dtl_recon_graph, mpr_count, best_roots \
-        = DTLReconGraph.reconcile(args.input, args.d, args.t, args.l)
+        = DTLReconGraph.reconcile(newick, d, t, l)
 
     # Reformat the host and parasite tree to use it with the histogram algorithm
     gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
     species_tree, species_tree_root, species_node_count \
         = Diameter.reformat_tree(edge_species_tree, "hTop")
 
-    if args.time:
+    if time_it:
         start = time.time()
     # Calculate the histogram via histogram algorithm
     diameter_alg_hist = HistogramAlg.diameter_algorithm(
         species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph,
-        False, False, verify=True)
-    if args.time:
+        False, False)
+    if time_it:
         end = time.time()
         elapsed = end - start
-        print(elapsed)
+    else:
+        elapsed = None
+    return diameter_alg_hist, elapsed
 
+def main(args):
+    hist, elapsed = calc_histogram(args.input, args.d, args.t, args.l, args.time)
+    if args.time:
+        print(elapsed)
     # Want to omit zeros first because they will affect the average / mean / standard deviation stats
     if args.omit_zeros:
-        hist_zero = HistogramDisplay.omit_zeros(diameter_alg_hist)
+        hist_zero = HistogramDisplay.omit_zeros(hist)
     else:
-        hist_zero = diameter_alg_hist
+        hist_zero = hist
     # Calculate the statistics (with or without zeros)
     if args.stats:
-        n_mprs = diameter_alg_hist[0]
+        n_mprs = hist[0]
         diameter, mean, std = HistogramDisplay.compute_stats(hist_zero)
         print("Number of MPRs: {}".format(n_mprs))
         print("Diameter of MPR-space: {}".format(diameter))
@@ -119,10 +123,11 @@ def main():
         hist_cum = hist_ynorm
     # Make the histogram image
     if args.histogram is not None:
-        HistogramDisplay.plot_histogram(args.histogram, diameter_alg_hist.histogram_dict, width)
+        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width)
     if args.csv is not None:
-        HistogramDisplay.csv_histogram(args.csv, diameter_alg_hist.histogram_dict)
+        HistogramDisplay.csv_histogram(args.csv, hist.histogram_dict)
 
 if __name__ == "__main__":
-    main()
+    args = process_args()
+    main(args)
 
