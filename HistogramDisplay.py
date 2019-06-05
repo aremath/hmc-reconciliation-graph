@@ -5,11 +5,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import csv
 
-def plot_histogram(plot_file, histogram, width):
+def plot_histogram(plot_file, histogram, width, tree_name):
     plt.bar(histogram.keys(), histogram.values(), width)
-    # plt.xlabel
-    # plt.ylabel
-    # plt.title
+    plt.xlabel("Distance")
+    plt.ylabel("Number of MPR Pairs")
+    # y=1.08 is a hack to make the title display above 
+    plt.title("Pairwise Distance Vector for {}".format(tree_name), y=1.08)
     plt.savefig(plot_file)
     plt.clf()
 

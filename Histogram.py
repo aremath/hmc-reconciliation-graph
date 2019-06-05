@@ -47,7 +47,7 @@ class Histogram:
         other_hist = other.histogram_dict
         for key in other_hist:
             new_hist[key] -= other_hist[key]
-            assert new_hist[key] > 0
+            assert new_hist[key] >= 0, (self, other, key)
         return Histogram(new_hist)
 
     @staticmethod

@@ -231,7 +231,13 @@ def calculate_incomparable_enter_hist(zero_loss, enter_table, u, uA, uA_loss_eve
     for event in uB_loss_events:
         b_child = event[1][1]
         hists.append(enter_table[u][uA][(u, b_child)] << cost(event, zero_loss))
+    # The previous histograms will overcount the possibility of taking a loss in both children.
+    # Since enter[u][(u, a_child)][(u, b_child)] is counted by both
+    # enter[u][uA][(u, b_child)] and enter[u][(u, a_child)][uB]
+    # Here we compute enter[u][(u, a_child)][(u, b_child)] in order to subtract it off
     for loss_event_A, loss_event_B in product(uA_loss_events, uB_loss_events):
+        a_child = loss_event_A[1][1]
+        b_child = loss_event_B[1][1]
         loss_cost = cost(loss_event_A, zero_loss) + cost(loss_event_B, zero_loss)
         lost_hists.append(enter_table[u][(u, a_child)][(u, b_child)] << loss_cost)
     return Histogram.sum(hists) - Histogram.sum(lost_hists)

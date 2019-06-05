@@ -88,42 +88,46 @@ def calc_histogram(newick, d, t, l, time_it):
         elapsed = None
     return diameter_alg_hist, elapsed
 
-def main(args):
-    hist, elapsed = calc_histogram(args.input, args.d, args.t, args.l, args.time)
-    if args.time:
-        print(elapsed)
-    # Want to omit zeros first because they will affect the average / mean / standard deviation stats
-    if args.omit_zeros:
+def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
+    # Omit zeroes
+    if omit_zeros:
         hist_zero = HistogramDisplay.omit_zeros(hist)
     else:
         hist_zero = hist
-    # Calculate the statistics (with or without zeros)
-    if args.stats:
-        n_mprs = hist[0]
-        diameter, mean, std = HistogramDisplay.compute_stats(hist_zero)
-        print("Number of MPRs: {}".format(n_mprs))
-        print("Diameter of MPR-space: {}".format(diameter))
-        print("Mean MPR distance: {} with standard deviation {}".format(mean, std))
     # Normalize the x values
-    if args.xnorm:
+    if xnorm:
         width = 1 / float(max(hist_zero.keys()))
         hist_xnorm = HistogramDisplay.normalize_xvals(hist_zero)
     else:
         width = 1
         hist_xnorm = hist_zero
     # Normalize the y values
-    if args.ynorm:
+    if ynorm:
         hist_ynorm = HistogramDisplay.normalize_yvals(hist_xnorm)
     else:
         hist_ynorm = hist_xnorm
     # Cumulative
-    if args.cumulative:
+    if cumulative:
         hist_cum = HistogramDisplay.cumulative(hist_ynorm)
     else:
         hist_cum = hist_ynorm
+    return hist_cum, width
+
+def main(args):
+    hist, elapsed = calc_histogram(args.input, args.d, args.t, args.l, args.time)
+    if args.time:
+        print(elapsed)
+    # Calculate the statistics (with zeros)
+    if args.stats:
+        n_mprs = hist[0]
+        diameter, mean, std = HistogramDisplay.compute_stats(hist_zero)
+        print("Number of MPRs: {}".format(n_mprs))
+        print("Diameter of MPR-space: {}".format(diameter))
+        print("Mean MPR distance: {} with standard deviation {}".format(mean, std))
+    hist_new, width = transform_hist(hist, args.omit_zeros, args.xnorm, args.ynorm, args.cumulative)
     # Make the histogram image
     if args.histogram is not None:
-        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width)
+        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width, Path(args.input).stem)
     if args.csv is not None:
         HistogramDisplay.csv_histogram(args.csv, hist.histogram_dict)
 
