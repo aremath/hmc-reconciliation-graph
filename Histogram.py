@@ -50,6 +50,33 @@ class Histogram:
             assert new_hist[key] >= 0, (self, other, key)
         return Histogram(new_hist)
 
+    def xscale(self, factor):
+        '''
+        Scale the distances by the given factor
+        '''
+        new_hist = { k*factor : v for k,v in self.histogram_dict.items() }
+        return Histogram(new_hist)
+
+    def mean(self):
+        '''
+        The mean distance
+        '''
+        n = 0
+        total = 0
+        for k,v in self.histogram_dict.items():
+            n += v
+            total += k * v
+        return total / float(n)
+
+    def standard_deviation(self):
+        mean = self.mean()
+        s=0
+        n = 0
+        for k,v in self.histogram_dict.items():
+            n += v
+            s += v * ((k-mean)**2)
+        return ((s / float(n)) ** 0.5)
+
     @staticmethod
     def sum(hist_list):
         new_dict = {}

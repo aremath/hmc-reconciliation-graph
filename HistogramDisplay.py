@@ -3,15 +3,30 @@ import matplotlib
 # Don't require an X-Server
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import csv
 
-def plot_histogram(plot_file, histogram, width, tree_name):
+def plot_histogram(plot_file, histogram, width, tree_name, d, t, l):
     plt.bar(histogram.keys(), histogram.values(), width)
-    plt.xlabel("Distance")
-    plt.ylabel("Number of MPR Pairs")
+    # Force y-axis to use scientific notation
+    plt.ticklabel_format(style="sci", axis="y", scilimits=(0,0))
+    # Find the exponent in order to put it in the ylabel
+    # Force offset text to update using draw
+    #TODO: there MUST be a better way to do this
+    plt.draw()
+    ax = plt.gca()
+    # matplotlib sure is intuitive and easy to use!
+    exponent_text = ax.get_yaxis().get_offset_text().get_text()
+    exponent = float(exponent_text.split("e")[-1])
+    latex_exponent = r"x$10^{%d}$" % exponent
+    # Don't display it because we're going to use it in the y-axis
+    ax.yaxis.offsetText.set_visible(False)
+    # Set the labels
+    plt.xlabel("Distance", fontsize=18)
+    plt.ylabel("Number of MPR Pairs {}".format(latex_exponent), fontsize=18)
     # y=1.08 is a hack to make the title display above 
-    plt.title("Pairwise Distance Vector for {}".format(tree_name), y=1.08)
-    plt.savefig(plot_file)
+    plt.title("{} with costs D:{}, T:{}, L:{}".format(tree_name, d, t, l), y=1.08, fontsize=18)
+    plt.savefig(plot_file, bbox_inches='tight')
     plt.clf()
 
 def csv_histogram(csv_file, histogram):
@@ -49,6 +64,8 @@ def compute_stats(histogram):
     # Diameter of MPR-space
     # Average distance between MPRs and standard deviation
     diameter = max(histogram.keys())
+    #TODO: use the histogram methods from histogram.py
+    # Flattening is a bad idea because this array might be exponentially large.
     flat_h = flatten(histogram)
     flat_h = np.asarray(flat_h)
     mean = flat_h.mean()

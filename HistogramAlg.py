@@ -164,10 +164,11 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
             A1 = e_a[1][1]
             A2 = e_a[2][1]
             for e_b in uB_exit_events:
-                # B1 and B2 are the species nodes of the two mapping nodes of e_b
-                # We need to account for the case that the children of u are in opposite order between the two events
+                # If the events are shared, only need the first ordering (the second will overcount)
                 if uA == uB and e_b > e_a:
                     continue
+                # B1 and B2 are the species nodes of the two mapping nodes of e_b
+                # We need to account for the case that the children of u are in opposite order between the two events
                 if child1 == e_b[1][0]:
                     B1 = e_b[1][1]
                     B2 = e_b[2][1]
@@ -175,7 +176,6 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
                     B1 = e_b[2][1]
                     B2 = e_b[1][1]
                 # Now, we need to turn the species nodes into the correct mapping nodes
-                #TODO: why reconstruct these like this instead of just doing ex u1A = e_a[1]
                 u1A = (child1, A1)
                 u1B = (child1, B1)
                 u2A = (child2, A2)
@@ -191,20 +191,15 @@ def calculate_hist_both_exit(zero_loss, enter_table, u, gene_tree, uA, dtl_recon
                     n_choices = 1
                 # 2 choices means a choice about both children AND the event.
                 if u1A == u1B and u2A == u2B and e_a != e_b:
-                    #print("2 choices with: " + str(e_a) + " | " + str(e_b))
                     n_choices = 2
+                # Do the convolution between left and right, then shift based on the difference of the events
                 this_hist = left_entry.product_combine(right_entry, n_choices)
-                #print("Hists")
-                #print(left_entry)
-                #print(right_entry)
-                #print(this_hist)
                 if e_a != e_b:
                     this_hist = this_hist << (cost(e_a, zero_loss) + cost(e_b, zero_loss))
                 else:
                     this_hist = this_hist << intersect_cost(0)
-
+                # Final histogram is the sum over all event pairs
                 hist_both_exit = hist_both_exit + this_hist
-
     return hist_both_exit
 
 
@@ -270,12 +265,14 @@ def calculate_equal_enter_hist(zero_loss, enter_table, u, uA, uA_loss_events, uB
         a_child = a_event[1][1]
         for b_event in uB_loss_events:
             b_child = b_event[1][1]
-            # TODO: make sure that this is actually correct
+            # Only the first ordering matters ((a, b) and (b, a) will both appear, but we should not treat them as distinct)
             if a_child < b_child:
                 hists.append(enter_table[u][(u, a_child)][(u, b_child)] << 2)
+            # If they are the same, then the same loss was used so there is no shift.
             elif a_child == b_child:
                 hists.append(enter_table[u][(u, a_child)][(u, b_child)])
 
+    # Only need to iterate through uA_loss_events since if they are equal then uB_loss_events = uA_loss_events.
     for event in uA_loss_events:
         a_child = event[1][1]
         hists.append(exit_table_b[u][uB][(u, a_child)] << cost(event, zero_loss))
@@ -394,6 +391,7 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
     :param dtl_recon_graph_b:   The other reconciliation graph. Both must share the same species and gene trees.
     :param debug:               Whether or not to print out pretty tables
     :param zero_loss:           Whether losses should count at all
+    :param verify:              Whether to verify the calculations using brute force
     :return:                    The diameter of the reconciliation.
     """
 

@@ -1,3 +1,4 @@
+import Histogram
 import HistogramMain
 
 import argparse
@@ -80,7 +81,7 @@ def array_dist(a1, a2):
         new_a2 = np.concatenate(shift, a2)
     return scipy.spatial.distance.jensenshannon(new_a1, new_a2)
 
-def find_hists(pathstr, d, t, l, timeout=10, min_mprs=0):
+def find_hists(pathstr, d, t, l, timeout=10, min_mprs=0, normalize=False, zero_loss=False):
     p = Path(pathstr)
     all_files = [f for f in p.glob("**/*") if f.is_file()]
     tree_files = [f for f in all_files if f.suffix == ".newick"]
@@ -94,7 +95,7 @@ def find_hists(pathstr, d, t, l, timeout=10, min_mprs=0):
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(timeout)
         try:
-            hist, time = HistogramMain.calc_histogram(str(f), d,t,l, True)
+            hist, time = HistogramMain.calc_histogram(str(f), d,t,l, True, normalize, zero_loss)
         except TimeoutError:
             print("")
             print("{} timed out".format(f))
@@ -110,7 +111,7 @@ def find_hists(pathstr, d, t, l, timeout=10, min_mprs=0):
         # Also make sure it has above the minimum number of MPRs
         if s_v >= 20 and h_d[0] > min_mprs:
             filenames.append(f)
-            histograms.append(h_d)
+            histograms.append(hist)
             times.append(time)
     print("")
     return filenames, histograms, times
@@ -130,16 +131,29 @@ def normal_sort(names, hists):
 
 if __name__ == "__main__":
     args = process_args()
-    names, hists, times = find_hists(args.input, args.d, args.t, args.l, timeout=args.timeout, min_mprs=10000)
+    names, hists, times = find_hists(args.input, args.d, args.t, args.l, timeout=args.timeout, min_mprs=10000, normalize=True, zero_loss=True)
     print("DATA")
+    # Compute the timing information
     print("Timing:")
     for i in range(len(names)):
         print(str(names[i]), times[i])
-    time_m = np.mean(times)
-    time_s = np.std(times)
-    print("Aggregate:")
-    print (time_m, time_s)
-    l = normal_sort(names, hists)
+    time_mean = np.mean(times)
+    time_std = np.std(times)
+    time_max = np.max(times)
+    print("Time:")
+    print("Mean: {}".format(time_mean))
+    print("Standard Deviation: {}".format(time_std))
+    print("Maximum: {}".format(time_max))
+    # Find the mean and standard deviation of the histograms
+    all_hists = Histogram.Histogram.sum(hists)
+    m = all_hists.mean()
+    s = all_hists.standard_deviation()
+    print("Distance:")
+    print("Mean: {}".format(m))
+    print("Standard Deviation: {}".format(s))
+    # Sort them by normality
+    hist_ds = [h.histogram_dict for h in hists]
+    l = normal_sort(names, hist_ds)
     print("Normality:")
     for i in l:
         print(str(i[0]), i[3])

@@ -7,6 +7,7 @@ import HistogramDisplay
 import argparse
 from pathlib import Path
 import time
+import math
 
 def process_args():
     # Required arguments - input file, D T L costs
@@ -65,10 +66,13 @@ def process_args():
         assert c.suffix == ".csv"
     return args
 
-def calc_histogram(newick, d, t, l, time_it):
+def calc_histogram(newick, d, t, l, time_it, normalize=False, zero_loss=False):
     # From the newick tree create the reconciliation graph
     edge_species_tree, edge_gene_tree, dtl_recon_graph, mpr_count, best_roots \
         = DTLReconGraph.reconcile(newick, d, t, l)
+
+    # If we want to know the number of MPRs
+    #print(mpr_count)
 
     # Reformat the host and parasite tree to use it with the histogram algorithm
     gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
@@ -80,12 +84,17 @@ def calc_histogram(newick, d, t, l, time_it):
     # Calculate the histogram via histogram algorithm
     diameter_alg_hist = HistogramAlg.diameter_algorithm(
         species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph,
-        False, False)
+        False, zero_loss)
     if time_it:
         end = time.time()
         elapsed = end - start
     else:
         elapsed = None
+
+    if normalize:
+        # Number of internal gene tree nodes
+        gene_tree_nodes = int(math.ceil(len(gene_tree) / 2.0))
+        diameter_alg_hist = diameter_alg_hist.xscale(1.0/(2*gene_tree_nodes))
     return diameter_alg_hist, elapsed
 
 def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
@@ -116,10 +125,10 @@ def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
 def main(args):
     hist, elapsed = calc_histogram(args.input, args.d, args.t, args.l, args.time)
     if args.time:
-        print(elapsed)
+        print("Time spent: {}".format(elapsed))
     # Calculate the statistics (with zeros)
     if args.stats:
-        n_mprs = hist[0]
+        n_mprs = hist.histogram_dict[0]
         diameter, mean, std = HistogramDisplay.compute_stats(hist_zero)
         print("Number of MPRs: {}".format(n_mprs))
         print("Diameter of MPR-space: {}".format(diameter))
@@ -127,7 +136,7 @@ def main(args):
     hist_new, width = transform_hist(hist, args.omit_zeros, args.xnorm, args.ynorm, args.cumulative)
     # Make the histogram image
     if args.histogram is not None:
-        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width, Path(args.input).stem)
+        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width, Path(args.input).stem, args.d, args.t, args.l)
     if args.csv is not None:
         HistogramDisplay.csv_histogram(args.csv, hist.histogram_dict)
 
