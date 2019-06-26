@@ -396,7 +396,7 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
     """
 
     # Use debugging
-    assert(dtl_recon_graph_a == dtl_recon_graph_b)
+    #assert(dtl_recon_graph_a == dtl_recon_graph_b)
     if verify:
         verfier = BFVerifier(dtl_recon_graph_a)
 
