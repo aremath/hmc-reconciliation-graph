@@ -165,11 +165,11 @@ def cluster_graph(graph, gene_root, distance, depth, k):
 # NOTE: Neither of these are really true metrics since the distance between g and itself is nonzero.
 # Makes a distance on graphs by specifying the trees and the root
 # The distance is the average pairwise distance between MPRs in the combined graph
-def mk_pdv_dist(species_tree, gene_tree, gene_tree_root):
+def mk_pdv_dist(species_tree, gene_tree, gene_root):
     def d(g1, g2):
-        #hist = HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_tree_root, g1, g2, False, False)
+        #hist = HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_root, g1, g2, False, False)
         gu = graph_union(g1, g2)
-        hist = HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_tree_root, gu, gu, False, False)
+        hist = HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_root, gu, gu, False, False)
         return hist.mean()
     return d
 
@@ -197,13 +197,20 @@ def mk_support_dist(species_tree, gene_tree, gene_root):
         return 1.0 / support_u
     return d
 
+# Partially apply diameter_algorithm on the non-chaning elements
+# This makes use with multiple graphs more convenient
+def mk_get_hist(species_tree, gene_tree, gene_root):
+    def get_hist(g):
+        return HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_root, g, g, False, False)
+    return get_hist
+
 def get_tree_info(newick, d,t,l):
     # From the newick tree create the reconciliation graph
     edge_species_tree, edge_gene_tree, dtl_recon_graph, mpr_count, best_roots \
         = DTLReconGraph.reconcile(newick, d, t, l)
     # Reformat the host and parasite tree to use it with the histogram algorithm
-    gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
+    gene_tree, gene_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
     species_tree, species_tree_root, species_node_count \
         = Diameter.reformat_tree(edge_species_tree, "hTop")
-    return gene_tree, species_tree, gene_tree_root, dtl_recon_graph, mpr_count
+    return gene_tree, species_tree, gene_root, dtl_recon_graph, mpr_count
 
