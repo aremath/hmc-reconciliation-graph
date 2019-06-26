@@ -32,7 +32,7 @@ def main():
     else:
         mk_d = ClusterUtil.mk_pdv_dist
     # Get the recon graph + other info
-    gene_tree, species_tree, gene_tree_root, recon_g = \
+    gene_tree, species_tree, gene_tree_root, recon_g, mpr_count = \
         ClusterUtil.get_tree_info(args.input, args.d,args.t,args.l)
 
     # Visualize the graphs
@@ -46,10 +46,13 @@ def main():
     # Actually perform the clustering
     graphs = ClusterUtil.cluster_graph(recon_g, gene_tree_root, d, args.depth, args.k)
     #TODO: what do with the graphs
+    #TODO: visualize the graph for each of the new gs and the original
+    #TODO: correlate normality with % improvement
     old_d =  d(recon_g, recon_g)
     new_ds = [d(g,g) for g in graphs]
     new_d = sum(new_ds) / float(len(new_ds))
-    improvement = new_d / old_d
+    improvement_ratio = new_d / old_d
+    improvement = 1 - improvement_ratio
     print(new_ds)
     print("Old distance: {}".format(old_d))
     print("New distance: {}".format(new_d))
@@ -57,7 +60,7 @@ def main():
 
 def main2():
     args = process_args()
-    gene_tree, species_tree, gene_tree_root, recon_g = \
+    gene_tree, species_tree, gene_tree_root, recon_g, mpr_count = \
         ClusterUtil.get_tree_info(args.input, args.d,args.t,args.l)
     RV.visualizeAndSave(recon_g, "original.png")
     gs = ClusterUtil.full_split(recon_g, gene_tree_root, args.depth)

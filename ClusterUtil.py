@@ -42,6 +42,18 @@ def graph_sub(g, root):
                 finished.add(m2)
     return newg
 
+def graph_split_n(g, root, n, mpr_count):
+    depth=1
+    while True:
+        gs = graph_split(g, root, depth)
+        if len(gs) >= n:
+            break
+        # We can't get more graphs than there are MPRs
+        elif len(gs) == mpr_count:
+            break
+        depth += 1
+    return gs
+
 # Find a set of sub-graphs by starting at root, and making every possible event
 # choice up to a given depth.
 def graph_split(g, root, depth):
@@ -79,18 +91,49 @@ def full_split(g, gene_root, depth):
     f = functools.reduce(lambda a, b: a+b, split_gs, [])
     return f
 
+# Helper for combine that updates the DP table for a re-indexed list
+def new_dp(dp, m1, m2):
+    # The new index corresponding to i if the elements at m1 and m2 are removed
+    def new_index(i):
+        if i < m1:
+            return i
+        elif i < m2:
+            return i - 1
+        elif i > m2:
+            return i - 2
+        assert False
+    newdp = {}
+    for pair, dist in dp.iteritems():
+        i1, i2 = pair
+        # Update the index for each index pair that does not involve m1 or m2
+        if i1 not in [m1, m2] and i2 not in [m1, m2]:
+            newdp[(new_index(i1), new_index(i2))] = dist
+    return newdp
+
 def combine(split_gs, distance, k):
     assert k > 1
+    # Use a DP table to keep track of the already-computed distances
+    dp = {}
     while len(split_gs) > k:
         # Find a pair to merge via smallest distance
-        min_dist = distance(split_gs[0], split_gs[1])
+        # Start with 0, 1 (guaranteed to exist since k > 1
+        if (0, 1) in dp:
+            min_dist = dp[(0, 1)]
+        else:
+            min_dist = distance(split_gs[0], split_gs[1])
+            dp[(0, 1)] = min_dist
         min_i1 = 0
         min_i2 = 1
         for i1, g1 in enumerate(split_gs):
             for i2, g2 in enumerate(split_gs):
-                # All combinations as itertools.combinations, but need the index as well
+                # All combinations like itertools.combinations, but need the indices as well
                 if i2 > i1:
-                    d = distance(g1, g2)
+                    # Get the distance from the DP table if possible
+                    if (i1, i2) in dp:
+                        d = dp[(i1, i2)]
+                    else:
+                        d = distance(g1, g2)
+                        dp[(i1, i2)] = d
                     if d < min_dist:
                         min_i1 = i1
                         min_i2 = i2
@@ -101,15 +144,27 @@ def combine(split_gs, distance, k):
         gm2 = split_gs.pop(min_i1)
         gu = graph_union(gm1, gm2)
         split_gs.append(gu)
+        # Fix up the DP table now that the list is re-indexed
+        # Entries involving gm1 and gm2 are removed and those distances will be
+        # re-computed in the next while loop.
+        dp = new_dp(dp, min_i1, min_i2)
     return split_gs
 
 # Find k clusters within MPRs of g using a depth-splitting method
 def cluster_graph(graph, gene_root, distance, depth, k):
+    # First split the graph
     gs = full_split(graph, gene_root, depth)
     print("Number of splits: {}".format(len(gs)))
+    # Then recombine those splits until we have k graphs
     return combine(gs, distance, k)
 
-# Neither of these are really true metrics since the distance between g and itself is nonzero.
+#TODO: this can be improved by keeping the partial DP table around.
+# Since the graphs are always the same below a certain level, preserving the table below that level
+# would mean less repeated computation.
+
+# NOTE: Neither of these are really true metrics since the distance between g and itself is nonzero.
+# Makes a distance on graphs by specifying the trees and the root
+# The distance is the average pairwise distance between MPRs in the combined graph
 def mk_pdv_dist(species_tree, gene_tree, gene_tree_root):
     def d(g1, g2):
         #hist = HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_tree_root, g1, g2, False, False)
@@ -119,13 +174,17 @@ def mk_pdv_dist(species_tree, gene_tree, gene_tree_root):
     return d
 
 def avg_event_support(species_tree, gene_tree, g, gene_root):
+    # Compute the event support for each event
     preorder_mapping_nodes = DTLMedian.mapping_node_sort(gene_tree, species_tree, g.keys())
-    event_support, count = DTLMedian.generate_scores(list(reversed(preorder_mapping_nodes)), g, gene_root)
+    event_support, count = \
+        DTLMedian.generate_scores(list(reversed(preorder_mapping_nodes)), g, gene_root)
+    # Take the average
     total_support = 0
     for support in event_support.itervalues():
         total_support += support
     return total_support / len(event_support)
 
+# The distance here is the reciprocal of the average event support
 def mk_support_dist(species_tree, gene_tree, gene_root):
     def d(g1, g2):
         gu = graph_union(g1, g2)
@@ -133,6 +192,7 @@ def mk_support_dist(species_tree, gene_tree, gene_root):
         #support_1 = avg_event_support(species_tree, gene_tree, g1, gene_root)
         #support_2 = avg_event_support(species_tree, gene_tree, g2, gene_root)
         #avg_individual = (support_1 + support_2) / 2.0
+
         # Higher support means closer, so take the reciprocal.
         return 1.0 / support_u
     return d
@@ -145,5 +205,5 @@ def get_tree_info(newick, d,t,l):
     gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
     species_tree, species_tree_root, species_node_count \
         = Diameter.reformat_tree(edge_species_tree, "hTop")
-    return gene_tree, species_tree, gene_tree_root, dtl_recon_graph
+    return gene_tree, species_tree, gene_tree_root, dtl_recon_graph, mpr_count
 
