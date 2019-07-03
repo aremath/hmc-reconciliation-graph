@@ -133,10 +133,14 @@ def get_ki_data(trees, args):
 # Correlate improvement with both metrics
 # # # #
 
+# Can't pickle a lambda, so define this here
+def mk_default_list():
+    return collections.defaultdict(list)
+
 # 1200 s = 20 minutes
 def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeout=1200, min_mprs=1000):
     # Keys clustering method index, evaluation method index, list of improvements
-    improvements = collections.defaultdict(lambda: collections.defaultdict(list))
+    improvements = collections.defaultdict(mk_default_list)
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i, n))
