@@ -21,6 +21,23 @@ def graph_union(g1, g2):
             newg[k] = v[:]
     return newg
 
+def graph_is_subset(g1, g2):
+    for k,v in g1.iteritems():
+        if k not in g2:
+            return False
+        for e in v:
+            if e not in g2[k]:
+                return False
+    return True
+
+def assert_pairwise_nonsub(gs):
+    for i1, g1 in enumerate(gs):
+        for i2, g2 in enumerate(gs):
+            if i2 > i1:
+                gis = graph_is_subset(g1, g2) or graph_is_subset(g2, g1)
+                assert not gis
+    assert False
+
 # Subset of g of nodes reachable from root
 def graph_sub(g, root):
     newg = {}
@@ -42,6 +59,8 @@ def graph_sub(g, root):
                 finished.add(m2)
     return newg
 
+# Split at higher depth until we have at least n MPRs
+# Use full_split_n instead since there may be multiple roots.
 def graph_split_n(g, root, n, mpr_count):
     depth=1
     while True:
@@ -81,6 +100,20 @@ def graph_split(g, root, depth):
                 gs.append(newg)
         return gs
 
+# Split at higher depth until n mprs are found
+def full_split_n(g, gene_root, n, mpr_count):
+    depth=1
+    while True:
+        gs = full_split(g, gene_root, depth)
+        if len(gs) >= n:
+            break
+        # We can't get more graphs than there are MPRs
+        elif len(gs) == mpr_count:
+            break
+        depth += 1
+    print("Depth: {}".format(depth))
+    return gs
+
 # Split every root, then flatten the list
 def full_split(g, gene_root, depth):
     # Find the mapping nodes involving the gene root
@@ -110,18 +143,59 @@ def new_dp(dp, m1, m2):
             newdp[(new_index(i1), new_index(i2))] = dist
     return newdp
 
-def combine(split_gs, distance, k):
-    assert k > 1
+def calc_improvement(gs, original_stats, metrics):
+    improvements = []
+    for old_stat_m, metric in izip(original_stats, metrics):
+        new_stats_m = [metric(g,g) for g in gs]
+        new_stat_m = sum(new_stats_m) / float(len(new_stats_m))
+        improvement_ratio_m = new_stat_m / old_stat_m
+        improvement_m = 1 - improvement_ratio_m
+        improvements.append(improvement_m)
+    return improvements
+
+# Score is weighted by the number of MPRs
+def get_score(graphs, distance, score_dp, mpr_counter):
+    ds = []
+    for i, g in enumerate(graphs):
+        if (i, i) in score_dp:
+            d = score_dp[(i, i)]
+        else:
+            dist = distance(g, g)
+            n = mpr_counter(g)
+            d = dist * n
+            score_dp[(i, i)] = d
+        ds.append(d)
+    return sum(ds) / float(len(ds))
+
+# Used to verify get_score
+def get_score_nodp(graphs, distance, mpr_counter):
+    ds = []
+    for g in graphs:
+        dist = distance(g,g)
+        n = mpr_counter(g)
+        d = dist * n
+        ds.append(d)
+    return sum(ds) / float(len(ds))
+
+#TODO: decide if we want "improvement over last time"
+# or "improvement over one cluster", or something else
+def combine(split_gs, distance, k, mpr_counter):
+    scores = []
     # Use a DP table to keep track of the already-computed distances
-    dp = {}
+    # Key - index pair, value - distance between the graphs at those indices
+    distance_dp = {}
+    # Keep track of the distance from each element to itself
+    # Key - index pair (same index), value - distance from that element to itself
+    score_dp = {}
+    # Merge until there are k (or fewer) splits
     while len(split_gs) > k:
         # Find a pair to merge via smallest distance
         # Start with 0, 1 (guaranteed to exist since k > 1
-        if (0, 1) in dp:
-            min_dist = dp[(0, 1)]
+        if (0, 1) in distance_dp:
+            min_dist = distance_dp[(0, 1)]
         else:
             min_dist = distance(split_gs[0], split_gs[1])
-            dp[(0, 1)] = min_dist
+            distance_dp[(0, 1)] = min_dist
         min_i1 = 0
         min_i2 = 1
         for i1, g1 in enumerate(split_gs):
@@ -129,34 +203,68 @@ def combine(split_gs, distance, k):
                 # All combinations like itertools.combinations, but need the indices as well
                 if i2 > i1:
                     # Get the distance from the DP table if possible
-                    if (i1, i2) in dp:
-                        d = dp[(i1, i2)]
+                    if (i1, i2) in distance_dp:
+                        d = distance_dp[(i1, i2)]
                     else:
                         d = distance(g1, g2)
-                        dp[(i1, i2)] = d
+                        distance_dp[(i1, i2)] = d
                     if d < min_dist:
                         min_i1 = i1
                         min_i2 = i2
                         min_dist = d
+        # Compute the "old" score (before the merge)
+        old_score = get_score(split_gs, distance, score_dp, mpr_counter)
         # Now merge them
         # Pop in reverse order (i2 > i1 necessarily) to not throw off the previous index
         gm1 = split_gs.pop(min_i2)
         gm2 = split_gs.pop(min_i1)
         gu = graph_union(gm1, gm2)
         split_gs.append(gu)
-        # Fix up the DP table now that the list is re-indexed
+        
+        #Debug:
+        #dm1 = score_dp[(min_i1, min_i1)]
+        #dm2 = score_dp[(min_i2, min_i2)]
+        #du = min_dist * mpr_counter(gu)
+        #print("Merge {} and {} to get {}".format(dm1, dm2, du))
+        #print("MPR counts {}, {} -> {}".format(mpr_counter(gm1), mpr_counter(gm2), mpr_counter(gu)))
+        #print("Is subset: {}".format(graph_is_subset(gm1, gm2) or graph_is_subset(gm2, gm1)))
+        #print("Graph sizes {}, {} -> {}".format(len(gm1), len(gm2), len(gu)))
+
+        # Fix up the distance DP table now that the list is re-indexed
         # Entries involving gm1 and gm2 are removed and those distances will be
         # re-computed in the next while loop.
-        dp = new_dp(dp, min_i1, min_i2)
-    return split_gs
+        distance_dp = new_dp(distance_dp, min_i1, min_i2)
+        # Re-index the improvement DP table
+        score_dp = new_dp(score_dp, min_i1, min_i2)
+        # Compute the "new" score (after the merge)
+        new_score = get_score(split_gs, distance, score_dp, mpr_counter)
+
+        # The improvement can actually be negative if we merge a split which is a subset of another split.
+        #imp = 1-(old_score/float(new_score))
+        #assert imp > 0, imp
+
+        scores.append((old_score, new_score))
+    # Reverse scores so that the first index of scores is the score for k clusters,
+    # the second is for k+1 clusters, etc.
+    return split_gs, scores[::-1]
+
+# Find k clusters within MPRs of g using a depth-splitting method
+def cluster_graph_n(graph, gene_root, distance, n, mpr_count, k):
+    # First split the graph
+    gs = full_split_n(graph, gene_root, n, mpr_count)
+    print("Number of splits: {}".format(len(gs)))
+    mpr_counter = mk_count_mprs(gene_root)
+    # Then recombine those splits until we have k graphs
+    return combine(gs, distance, k, mpr_counter)
 
 # Find k clusters within MPRs of g using a depth-splitting method
 def cluster_graph(graph, gene_root, distance, depth, k):
     # First split the graph
     gs = full_split(graph, gene_root, depth)
     print("Number of splits: {}".format(len(gs)))
+    mpr_counter = mk_count_mprs(gene_root)
     # Then recombine those splits until we have k graphs
-    return combine(gs, distance, k)
+    return combine(gs, distance, k, mpr_counter)
 
 #TODO: this can be improved by keeping the partial DP table around.
 # Since the graphs are always the same below a certain level, preserving the table below that level
@@ -178,7 +286,7 @@ def avg_event_support(species_tree, gene_tree, g, gene_root):
     preorder_mapping_nodes = DTLMedian.mapping_node_sort(gene_tree, species_tree, g.keys())
     event_support, count = \
         DTLMedian.generate_scores(list(reversed(preorder_mapping_nodes)), g, gene_root)
-    # Take the average
+    # Take the average over each event
     total_support = 0
     for support in event_support.itervalues():
         total_support += support
@@ -194,7 +302,8 @@ def mk_support_dist(species_tree, gene_tree, gene_root):
         #avg_individual = (support_1 + support_2) / 2.0
 
         # Higher support means closer, so take the reciprocal.
-        return 1.0 / support_u
+        #return 1.0 / support_u
+        return -1 * support_u
     return d
 
 # Partially apply diameter_algorithm on the non-chaning elements
@@ -203,6 +312,14 @@ def mk_get_hist(species_tree, gene_tree, gene_root):
     def get_hist(g):
         return HistogramAlg.diameter_algorithm(species_tree, gene_tree, gene_root, g, g, False, False)
     return get_hist
+
+# Create a function that counts the number of mprs
+def mk_count_mprs(gene_root):
+    def count_mprs(g):
+        # Find the mapping nodes involving the gene root
+        roots = [k for k in g.keys() if k[0] == gene_root]
+        return DTLReconGraph.count_mprs_wrapper(roots, g)
+    return count_mprs
 
 def get_tree_info(newick, d,t,l):
     # From the newick tree create the reconciliation graph

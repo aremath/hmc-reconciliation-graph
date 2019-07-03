@@ -68,7 +68,19 @@ class Histogram:
             total += k * v
         return total / float(n)
 
+    def total(self):
+        '''
+        The total amount of distance
+        '''
+        total = 0
+        for k,v in self.histogram_dict.items():
+            total += k * v
+        return total
+
     def standard_deviation(self):
+        '''
+        The standard deviation of the distances
+        '''
         mean = self.mean()
         s=0
         n = 0

@@ -71,7 +71,7 @@ def mapping_node_sort(ordered_gene_node_list, ordered_species_node_list, mapping
     return sorted_list
 
 
-def generate_scores(preorder_mapping_node_list, dtl_recon_graph, gene_root):
+def generate_scores(preorder_mapping_node_list, dtl_recon_graph, gene_root, normalize=True):
     """
     Computes frequencies for every event
     :param preorder_mapping_node_list: A list of all mapping nodes in DTLReconGraph in double preorder
@@ -118,10 +118,12 @@ def generate_scores(preorder_mapping_node_list, dtl_recon_graph, gene_root):
         # This fills up the event scores dictionary
         calculate_scores_for_children(mapping_node, dtl_recon_graph, event_scores, scores, counts)
 
-    # Normalize all of the event_scores
-    for mapping_node in preorder_mapping_node_list:
-        for event in dtl_recon_graph[mapping_node]:
-                event_scores[event] = event_scores[event] / float(count)
+    if normalize:
+        # Normalize all of the event_scores by the number of MPRs
+        # so that each score is a percentage
+        for mapping_node in preorder_mapping_node_list:
+            for event in dtl_recon_graph[mapping_node]:
+                    event_scores[event] = event_scores[event] / float(count)
 
     return event_scores, count
 
