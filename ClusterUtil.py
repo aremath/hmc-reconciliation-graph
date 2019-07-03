@@ -161,16 +161,6 @@ def new_u_dp(u_dp, m1, m2):
             newdp[(new_index(i1), new_index(i2))] = dist
     return newdp
 
-def calc_improvement(gs, original_stats, metrics):
-    improvements = []
-    for old_stat_m, metric in izip(original_stats, metrics):
-        new_stats_m = [metric(g,g) for g in gs]
-        new_stat_m = sum(new_stats_m) / float(len(new_stats_m))
-        improvement_ratio_m = new_stat_m / old_stat_m
-        improvement_m = 1 - improvement_ratio_m
-        improvements.append(improvement_m)
-    return improvements
-
 # Actually compute the relevant score values
 def get_score_vals(graphs, g_score, score_dp, nmprs_dp, mpr_counter):
     weighted_score = 0
@@ -346,8 +336,8 @@ def mk_support_score(species_tree, gene_tree, gene_root):
     def score(g):
         support = avg_event_support(species_tree, gene_tree, g, gene_root)
         # Higher support means closer, so take the reciprocal.
-        return 1.0 / support
-        #return -1 * support
+        #return 1.0 / support
+        return -1 * support
     return score
 
 # Partially apply diameter_algorithm on the non-chaning elements
@@ -364,6 +354,9 @@ def mk_count_mprs(gene_root):
         roots = [k for k in g.keys() if k[0] == gene_root]
         return DTLReconGraph.count_mprs_wrapper(roots, g)
     return count_mprs
+
+def calc_improvement(big_k, little_k):
+    return big_k / float(little_k)
 
 def get_tree_info(newick, d,t,l):
     # From the newick tree create the reconciliation graph

@@ -6,6 +6,8 @@ import argparse
 import signal
 from pathlib import Path
 import collections
+import csv
+import pickle
 
 import numpy as np
 import matplotlib
@@ -13,6 +15,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+#TODO: if args.input is specified, then no need for d,t,l,input,etc.
 def process_args():
     # Required arguments - input file, D T L costs
     parser = argparse.ArgumentParser("")
@@ -26,6 +29,8 @@ def process_args():
         help="The relative cost of a loss.")
     parser.add_argument("-k", type=int, metavar="<number_of_clusters>", required=True,
         help="How many clusters to create.")
+    parser.add_argument("--output", metavar="<filename>", required=False,
+        help="The path to a file which will store the scores.")
     depth_or_n = parser.add_mutually_exclusive_group(required=True)
     depth_or_n.add_argument("--depth", type=int, metavar="<tree_depth>",
         help="How far down the graph to consider event splits.")
@@ -99,7 +104,7 @@ def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000):
     return scores
 
 def scores_to_improvements(scores):
-    return [1 - new/float(old) for new,old in scores]
+    return [ClusterUtil.calc_improvement(big,small) for big,small in scores]
 
 def plot_k_improvement(improvements, initial_k):
     for series in improvements:
@@ -118,12 +123,11 @@ def plot_k_improvement(improvements, initial_k):
     plt.savefig("k_improvement_plot.pdf", bbox_inches="tight")
     plt.clf()
 
-def k_improvement_plot(trees, args):
+def get_ki_data(trees, args):
     assert args.k == 1
     metric = ClusterUtil.mk_support_score
     scores = get_scores(trees, metric, args)
-    improvements = [scores_to_improvements(s) for s in scores]
-    plot_k_improvement(improvements, args.k)
+    return [scores_to_improvements(s) for s in scores]
 
 # # # #
 # Correlate improvement with both metrics
@@ -160,7 +164,7 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
             for i2, eval_score in enumerate(eval_scores):
                 one_score = one_scores[i2]
                 k_score = ClusterUtil.get_score_nodp(graphs, eval_score, mpr_counter)
-                improvement = 1 - (k_score / float(one_score))
+                improvement = ClusterUtil.calc_improvement(k_score, one_score)
                 improvements[i1][i2].append(improvement)
     return improvements
 
@@ -181,23 +185,21 @@ def plot_s1_s2(improvements):
         xs, ys = s
         color = colors[i]
         plt.scatter(xs, ys, c=color, alpha=0.5)
-    plt.ylim((0, 1))
-    plt.xlim((0, 1))
+    #plt.ylim((0, 1))
+    #plt.xlim((0, 1))
     plt.xlabel("S1 improvement")
     plt.ylabel("S2 improvement")
     plt.title("Relative improvement")
     plt.savefig("s1_s2_plot.pdf", bbox_inches="tight")
     plt.clf()
 
-def s1_s2_plot(trees, args):
+def get_s1_s2_data(trees, args):
     #cluster_names = ["PDV", "Event Support"]
     #cluster_metrics = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
     cluster_mk_scores = [ClusterUtil.mk_support_score]
     #eval_names = ["PDV", "Event Support"]
     eval_mk_scores = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
-    s1_s2_improvements = get_improvements(trees, cluster_mk_scores, eval_mk_scores, args)
-    # Now plot them!
-    plot_s1_s2(s1_s2_improvements)
+    return get_improvements(trees, cluster_mk_scores, eval_mk_scores, args)
 
 # # # #
 # Correlate improvement with the number of splits used
@@ -245,7 +247,7 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
             true_n = args.k + len(scores)
             # Compare two clusters to one cluster
             two_s, one_s = scores[0]
-            improvement = (1 - two_s/float(one_s))
+            improvement = ClusterUtil.calc_improvement(two_s, one_s)
             xs.append(true_n)
             ys.append(improvement)
         series.append((xs[:], ys[:]))
@@ -258,8 +260,7 @@ def plot_n_improvement(series):
     cmap = matplotlib.cm.get_cmap("hsv", n+1)
     for i, (xs, ys) in enumerate(series):
         plt.plot(xs, ys, c=cmap(norm(i)), marker="o", alpha=0.5)
-    # Improvement is bounded between 0 and 1
-    plt.ylim(bottom=0)
+    plt.ylim(bottom=1)
     #plt.xlim((0,500))
     plt.xlabel("Number of Splits")
     plt.ylabel("Improvement")
@@ -267,10 +268,9 @@ def plot_n_improvement(series):
     plt.savefig("n_improvement_plot.pdf", bbox_inches="tight")
     plt.clf()
 
-def n_improvement_plot(trees, args):
+def get_ni_data(trees, args):
     mk_score = ClusterUtil.mk_support_score
-    series = get_n_improvements(trees, mk_score, args)
-    plot_n_improvement(series)
+    return get_n_improvements(trees, mk_score, args)
 
 #MAIN
 #TODO: just do all the required calculations ahead of time
@@ -278,13 +278,28 @@ def n_improvement_plot(trees, args):
 
 def main():
     args = process_args()
-    trees = get_tree_files(args.input)
+    p = Path(args.input)
+    if p.is_file():
+        with open(str(p), "r") as infile:
+            data = pickle.load(infile)
+    else:
+        trees = get_tree_files(args.input)
+        if args.s1s2:
+            data = get_s1_s2_data(trees, args)
+        if args.ki:
+            data = get_ki_data(trees, args)
+        if args.ni:
+            data = get_ni_data(trees, args)
     if args.s1s2:
-        s1_s2_plot(trees, args)
+        plot_s1_s2(data)
     if args.ki:
-        k_improvement_plot(trees, args)
+        plot_k_improvement(data, args.k)
     if args.ni:
-        n_improvement_plot(trees, args)
+        plot_n_improvement(data)
+    # Dump the data
+    if args.output is not None:
+        with open(args.output, "w") as outfile:
+            pickle.dump(data, outfile)
 
 if __name__ == "__main__":
     main()
