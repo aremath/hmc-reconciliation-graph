@@ -179,6 +179,28 @@ def get_score_vals(graphs, g_score, score_dp, nmprs_dp, mpr_counter):
         total_nmprs += nmprs
     return weighted_score, total_nmprs
 
+# Get score vals, but ignore certain indices
+# Can't just pass in graphs but without the two indices because
+# that would mess up the DP tables.
+def get_score_vals_ignore(graphs, g_score, score_dp, nmprs_dp, mpr_counter, i1, i2):
+    weighted_score = 0
+    total_nmprs = 0
+    for i, g in enumerate(graphs):
+        if i == i1 or i == i2:
+            continue
+        if i in score_dp and i in nmprs_dp:
+            score = score_dp[i]
+            nmprs = nmprs_dp[i]
+        else:
+            score = g_score(g)
+            nmprs = mpr_counter(g)
+            # Update DP tables
+            score_dp[i] = score
+            nmprs_dp[i] = nmprs
+        weighted_score += score * nmprs
+        total_nmprs += nmprs
+    return weighted_score, total_nmprs
+
 # Score is weighted by the number of MPRs
 def get_score(graphs, g_score, score_dp, nmprs_dp, mpr_counter):
     weighted_score, total_nmprs = get_score_vals(graphs, g_score, score_dp, nmprs_dp, mpr_counter)
@@ -197,9 +219,9 @@ def get_score_nodp(graphs, g_score, mpr_counter):
 
 # Score as if the graphs at i1 and i2 are merged
 def get_score_merge_indices(graphs, g_score, score_dp, score_u_dp, nmprs_dp, nmprs_u_dp, mpr_counter, i1, i2):
-    # New list without the pair to be merged
-    newgs = [g for i,g in enumerate(graphs) if i != i1 and i != i2]
-    weighted_score, total_nmprs = get_score_vals(newgs, g_score, score_dp, nmprs_dp, mpr_counter)
+    # Calculate the weighted score without the pair to be merged
+    weighted_score, total_nmprs = get_score_vals_ignore(graphs, g_score, score_dp, nmprs_dp, \
+                                                        mpr_counter, i1, i2)
     pair = (i1, i2)
     if pair in score_u_dp and pair in nmprs_u_dp:
         u_score = score_u_dp[pair]
@@ -251,7 +273,8 @@ def combine(split_gs, g_score, k, mpr_counter):
                         min_i2 = i2
                         min_dist = dist
         # Compute the "old" score (before the merge)
-        old_score = get_score(split_gs, g_score, score_dp, nmprs_dp, mpr_counter)
+        score = get_score(split_gs, g_score, score_dp, nmprs_dp, mpr_counter)
+        scores.append(score)
 
         # Now merge them
         # Pop in reverse order (i2 > i1 necessarily) to not throw off the previous index
@@ -277,32 +300,30 @@ def combine(split_gs, g_score, k, mpr_counter):
         score_u_dp = new_u_dp(score_u_dp, min_i1, min_i2)
         nmprs_u_dp = new_u_dp(nmprs_u_dp, min_i1, min_i2)
 
-        # Compute the "new" score (after the merge)
-        new_score = get_score(split_gs, g_score, score_dp, nmprs_dp, mpr_counter)
-
-        # The improvement can actually be negative if we merge a split which is a subset of another split.
-        #imp = 1-(old_score/float(new_score))
-        #assert imp > 0, imp
-
-        scores.append((old_score, new_score))
+    final_score = get_score(split_gs, g_score, score_dp, nmprs_dp, mpr_counter)
+    scores.append(final_score)
     # Reverse scores so that the first index of scores is the score for k clusters,
     # the second is for k+1 clusters, etc.
     return split_gs, scores[::-1]
 
 # Find k clusters within MPRs of g using a depth-splitting method
-def cluster_graph_n(graph, gene_root, distance, n, mpr_count, k):
+def cluster_graph_n(graph, gene_root, distance, n, mpr_count, k, max_splits):
     # First split the graph
     gs = full_split_n(graph, gene_root, n, mpr_count)
     print("Number of splits: {}".format(len(gs)))
+    if len(gs) > max_splits:
+        return None
     mpr_counter = mk_count_mprs(gene_root)
     # Then recombine those splits until we have k graphs
     return combine(gs, distance, k, mpr_counter)
 
 # Find k clusters within MPRs of g using a depth-splitting method
-def cluster_graph(graph, gene_root, distance, depth, k):
+def cluster_graph(graph, gene_root, distance, depth, k, max_splits):
     # First split the graph
     gs = full_split(graph, gene_root, depth)
     print("Number of splits: {}".format(len(gs)))
+    if len(gs) > max_splits:
+        return None
     mpr_counter = mk_count_mprs(gene_root)
     # Then recombine those splits until we have k graphs
     return combine(gs, distance, k, mpr_counter)

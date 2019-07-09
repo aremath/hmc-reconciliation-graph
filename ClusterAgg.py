@@ -8,6 +8,7 @@ from pathlib import Path
 import collections
 import csv
 import pickle
+import itertools
 
 import numpy as np
 import matplotlib
@@ -31,6 +32,8 @@ def process_args():
         help="How many clusters to create.")
     parser.add_argument("--output", metavar="<filename>", required=False,
         help="The path to a file which will store the scores.")
+    parser.add_argument("--absolute", action="store_true", required=False,
+        help="Use absolute improvement or relative improvement")
     depth_or_n = parser.add_mutually_exclusive_group(required=True)
     depth_or_n.add_argument("--depth", type=int, metavar="<tree_depth>",
         help="How far down the graph to consider event splits.")
@@ -52,6 +55,12 @@ class TimeoutError(Exception):
 def timeout_handler(signum, frame):
     raise TimeoutError
 
+# (s0, s1), (s1, s2), ...
+def pairwise(iterable):
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return itertools.izip(a, b)
+
 def get_tree_files(pathstr):
     p = Path(pathstr)
     all_files = [f for f in p.glob("**/*") if f.is_file()]
@@ -59,32 +68,32 @@ def get_tree_files(pathstr):
     return tree_files
 
 # Do the clustering with a timeout
-def timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout):
+def timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout, max_splits):
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
     try:
-        graphs,scores = cluster(recon_g, gene_root, score, mpr_count, args)
+        c = cluster(recon_g, gene_root, score, mpr_count, args, max_splits)
     except TimeoutError:
         return None
     signal.alarm(0)
-    return graphs, scores
+    return c
 
 # Actually perform the clustering
-def cluster(recon_g, gene_root, score, mpr_count, args):
+def cluster(recon_g, gene_root, score, mpr_count, args, max_splits):
     if args.depth is not None:
-        graphs, scores = ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k)
+        return ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k, max_splits)
     elif args.nmprs is not None:
-        graphs, scores = ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k)
+        return ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k, max_splits)
     else:
         assert False
-    return graphs, scores
 
 # # # #
 # Correlate improvement with number of clusters
 # # # #
 
-def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000):
+def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
     scores = []
+    ftrees = []
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i, n))
@@ -95,39 +104,73 @@ def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000):
         if mpr_count < min_mprs:
             continue
         score = mk_score(species_tree, gene_tree, gene_root)
-        t = timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout)
+        t = timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout, max_splits)
         if t is None:
             print("{} timed out".format(f))
             continue
         _,tree_scores = t
         scores.append(tree_scores)
-    return scores
+        ftrees.append(f)
+    return scores, ftrees
 
-def scores_to_improvements(scores):
-    return [ClusterUtil.calc_improvement(big,small) for big,small in scores]
+# Scores relative to the previous score
+def scores_to_improvements_relative(scores):
+    return [[ClusterUtil.calc_improvement(big,small) for small,big in pairwise(s)] for s in scores]
 
-def plot_k_improvement(improvements, initial_k):
+# Scores relative to the score for one cluster
+def scores_to_improvements_absolute(scores):
+    # The score for one cluster
+    improvements = []
+    for s in scores:
+        s_improvement = []
+        small = s[0]
+        # Want to ignore 1 since the improvement will always be 1.0
+        for big in s[1:]:
+            s_improvement.append(ClusterUtil.calc_improvement(big,small))
+        improvements.append(s_improvement)
+    return improvements
+
+# Just the raw weighted average scores
+def scores_to_improvements_raw(scores):
+    return [[-1*s for s in series] for series in scores]
+
+def plot_k_improvement(scores, initial_k, absolute, raw):
+    if absolute:
+        improvements = scores_to_improvements_absolute(scores)
+        title = "Absolute Improvement by Number of Clusters"
+        yax = "Improvement"
+        xadj = 1
+    elif raw:
+        improvements = scores_to_improvements_raw(scores)
+        title = "Weighted Average Score by Number of Clusters"
+        yax = "Score"
+        xadj = 0
+    else:
+        improvements = scores_to_improvements_relative(scores)
+        title = "Relative Improvement by Number of Clusters"
+        yax = "Improvement"
+        xadj = 1
     for series in improvements:
         xs = []
         ys = []
         for k, imp in enumerate(series):
-            xs.append(k + initial_k)
+            xs.append(k + initial_k + xadj)
             ys.append(imp)
-        plt.plot(xs,ys, c="blue", marker="o", alpha=0.5)
+        plt.plot(xs,ys, c="blue", marker="o", alpha=0.1)
     # Improvement is bounded between 0 and 1
     #plt.ylim((0,1))
     plt.xlim((0,10))
     plt.xlabel("Number of Clusters")
-    plt.ylabel("Improvement")
-    plt.title("Relative improvement")
+    plt.ylabel(yax)
+    plt.title(title)
     plt.savefig("k_improvement_plot.pdf", bbox_inches="tight")
     plt.clf()
+
 
 def get_ki_data(trees, args):
     assert args.k == 1
     metric = ClusterUtil.mk_support_score
-    scores = get_scores(trees, metric, args)
-    return [scores_to_improvements(s) for s in scores]
+    return get_scores(trees, metric, args)
 
 # # # #
 # Correlate improvement with both metrics
@@ -138,8 +181,10 @@ def mk_default_list():
     return collections.defaultdict(list)
 
 # 1200 s = 20 minutes
-def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeout=1200, min_mprs=1000):
-    # Keys clustering method index, evaluation method index, list of improvements
+def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeout=1200, min_mprs=1000, max_splits=200):
+    # Key: clustering method index. Value: list of trees that finished
+    ftrees = collections.defaultdict(list)
+    # Keys: clustering method index, evaluation method index. Value: list of improvements
     improvements = collections.defaultdict(mk_default_list)
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
@@ -159,10 +204,11 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
         one_scores = [eval_s(recon_g) for eval_s in eval_scores]
         # Perform the clustering for each cluster score
         for i1, cluster_score in enumerate(cluster_scores):
-            t = timeout_cluster(recon_g, gene_root, cluster_score, mpr_count, args, timeout)
+            t = timeout_cluster(recon_g, gene_root, cluster_score, mpr_count, args, timeout, max_splits)
             if t is None:
                 print("{} timed out".format(f))
                 continue
+            ftrees[i1].append(f)
             graphs,_ = t
             # Evaluate the clustering for each evaluation score
             for i2, eval_score in enumerate(eval_scores):
@@ -170,7 +216,7 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
                 k_score = ClusterUtil.get_score_nodp(graphs, eval_score, mpr_counter)
                 improvement = ClusterUtil.calc_improvement(k_score, one_score)
                 improvements[i1][i2].append(improvement)
-    return improvements
+    return improvements, ftrees
 
 # Make plottable xs and ys for each evaluation metric
 # Specific to two dimensional output
@@ -209,8 +255,9 @@ def get_s1_s2_data(trees, args):
 # Correlate improvement with the number of splits used
 # # # #
 
-def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=400):
+def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
     series = []
+    ftrees = []
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i, n))
@@ -237,7 +284,7 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
             try:
                 gs = ClusterUtil.full_split_n(recon_g, gene_root, args.nmprs, mpr_count)
                 print("Number of splits: {}".format(len(gs)))
-                # Don't bother re-clustering if we split to get the same number of gs
+                # Don't bother re-clustering if we split to get the same number of gs (induces the same split)
                 if len(gs) == old_ngs or len(gs) > max_splits:
                     continue
                 else:
@@ -248,14 +295,17 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
                 continue
             signal.alarm(0)
 
-            true_n = args.k + len(scores)
+            true_n = len(scores)
             # Compare two clusters to one cluster
-            two_s, one_s = scores[0]
+            two_s = scores[1]
+            one_s = scores[0]
             improvement = ClusterUtil.calc_improvement(two_s, one_s)
+            #improvement = ClusterUtil.calc_improvement(one_s, two_s)
             xs.append(true_n)
             ys.append(improvement)
+        ftrees.append(f)
         series.append((xs[:], ys[:]))
-    return series
+    return series, ftrees
 
 def plot_n_improvement(series):
     # Different color for each series
@@ -268,12 +318,14 @@ def plot_n_improvement(series):
     #plt.xlim((0,500))
     plt.xlabel("Number of Splits")
     plt.ylabel("Improvement")
-    plt.title("Relative improvement")
+    plt.title("Improvement Correlated with Number of Splits")
     plt.savefig("n_improvement_plot.pdf", bbox_inches="tight")
     plt.clf()
 
 def get_ni_data(trees, args):
+    assert args.k == 1
     mk_score = ClusterUtil.mk_support_score
+    #mk_score = ClusterUtil.mk_pdv_score
     return get_n_improvements(trees, mk_score, args)
 
 #MAIN
@@ -285,25 +337,28 @@ def main():
     p = Path(args.input)
     if p.is_file():
         with open(str(p), "r") as infile:
-            data = pickle.load(infile)
+            ftrees, data = pickle.load(infile)
     else:
         trees = get_tree_files(args.input)
+        # Each alg returns some data and a list of tree files that finished
+        # We want to keep the list of tree files too,
+        # so that we can associate each datum with a single tree.
         if args.s1s2:
-            data = get_s1_s2_data(trees, args)
+            data, ftrees = get_s1_s2_data(trees, args)
         if args.ki:
-            data = get_ki_data(trees, args)
+            data, ftrees = get_ki_data(trees, args)
         if args.ni:
-            data = get_ni_data(trees, args)
+            data, ftrees = get_ni_data(trees, args)
     if args.s1s2:
         plot_s1_s2(data)
     if args.ki:
-        plot_k_improvement(data, args.k)
+        plot_k_improvement(data, args.k, args.absolute, False)
     if args.ni:
         plot_n_improvement(data)
     # Dump the data
     if args.output is not None:
         with open(args.output, "w") as outfile:
-            pickle.dump(data, outfile)
+            pickle.dump((ftrees, data), outfile)
 
 if __name__ == "__main__":
     main()
