@@ -48,9 +48,9 @@ def main():
     args = process_args()
     # Choose the distance metric
     if args.supportdist:
-        mk_d = ClusterUtil.mk_support_dist
+        mk_score = ClusterUtil.mk_support_score
     else:
-        mk_d = ClusterUtil.mk_pdv_dist
+        mk_score = ClusterUtil.mk_pdv_score
     # Get the recon graph + other info
     gene_tree, species_tree, gene_root, recon_g, mpr_count = \
         ClusterUtil.get_tree_info(args.input, args.d,args.t,args.l)
@@ -63,35 +63,34 @@ def main():
     
     mpr_counter = ClusterUtil.mk_count_mprs(gene_root)
     # Make the distance metric for these specific trees
-    d = mk_d(species_tree, gene_tree, gene_root)
+    score = mk_score(species_tree, gene_tree, gene_root)
     # Actually perform the clustering
     if args.depth is not None:
-        graphs,scores = ClusterUtil.cluster_graph(recon_g, gene_root, d, args.depth, args.k)
+        graphs,scores = ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k, 200)
     elif args.nmprs is not None:
-        graphs,scores = ClusterUtil.cluster_graph_n(recon_g, gene_root, d, args.nmprs, mpr_count, args.k)
+        graphs,scores = ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k, 200)
     else:
         assert False
     #TODO: what do with the graphs
     #TODO: visualize the graph for each of the new gs and the original
     # Visualization
-    #get_hist = ClusterUtil.mk_get_hist(species_tree, gene_tree, gene_root)
-    #cost_suffix = ".{}-{}-{}".format(args.d, args.t, args.l)
-    #p = Path(args.input)
-    #orig_p = str(p.with_suffix(cost_suffix + ".pdf"))
-    #orig_h = get_hist(recon_g).histogram_dict
-    #HistogramDisplay.plot_histogram(orig_p, orig_h, 1, Path(args.input).stem, args.d, args.t, args.l)
-    #for i, g in enumerate(graphs):
-    #    g_i = "cluster{}".format(i)
-    #    g_p = str(p.with_suffix("." + g_i + cost_suffix + ".pdf"))
-    #    g_h = get_hist(g).histogram_dict
-    #    HistogramDisplay.plot_histogram(g_p, g_h, 1, Path(args.input).stem + g_i, args.d, args.t, args.l)
+    get_hist = ClusterUtil.mk_get_hist(species_tree, gene_tree, gene_root)
+    cost_suffix = ".{}-{}-{}".format(args.d, args.t, args.l)
+    p = Path(args.input)
+    orig_p = str(p.with_suffix(cost_suffix + ".pdf"))
+    orig_h = get_hist(recon_g).histogram_dict
+    HistogramDisplay.plot_histogram(orig_p, orig_h, 1, Path(args.input).stem, args.d, args.t, args.l)
+    for i, g in enumerate(graphs):
+        g_i = "cluster{}".format(i)
+        g_p = str(p.with_suffix("." + g_i + cost_suffix + ".pdf"))
+        g_h = get_hist(g).histogram_dict
+        HistogramDisplay.plot_histogram(g_p, g_h, 1, Path(args.input).stem + g_i, args.d, args.t, args.l)
     # Statistics
-    one_score = ClusterUtil.get_score_nodp([recon_g], d, mpr_counter)
-    k_score = ClusterUtil.get_score_nodp(graphs, d, mpr_counter)
-    improvement_ratio = k_score / float(one_score)
-    improvement = 1 - improvement_ratio
-    print("Old distance: {}".format(one_score))
-    print("New distance: {}".format(k_score))
+    one_score = ClusterUtil.get_score_nodp([recon_g], score, mpr_counter)
+    k_score = ClusterUtil.get_score_nodp(graphs, score, mpr_counter)
+    improvement = ClusterUtil.calc_improvement(k_score, one_score)
+    print("Old score: {}".format(one_score))
+    print("New score: {}".format(k_score))
     print("Improvement:  {}".format(improvement))
 
 def main2():

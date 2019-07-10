@@ -46,6 +46,11 @@ def process_args():
         help="Correlate the improvement with the number of clusters.")
     which_plot.add_argument("--ni", action="store_true",
         help="Correlate the improvement with the number of splits used.")
+    score = parser.add_mutually_exclusive_group(required=True)
+    score.add_argument("--pdv", action="store_true",
+        help="Use the weighted average distance to evaluate clusters.")
+    score.add_argument("--support", action="store_true",
+        help="Use the weighted average event support to evaluate clusters.")
     args = parser.parse_args()
     return args
 
@@ -54,6 +59,14 @@ class TimeoutError(Exception):
 
 def timeout_handler(signum, frame):
     raise TimeoutError
+
+def choose_score(args):
+    if args.pdv:
+        return ClusterUtil.mk_pdv_score
+    elif args.support:
+        return ClusterUtil.mk_support_score
+    else:
+        assert False
 
 # (s0, s1), (s1, s2), ...
 def pairwise(iterable):
@@ -96,7 +109,7 @@ def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_spli
     ftrees = []
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
-        print("{}: {}/{}".format(f, i, n))
+        print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
         gene_tree, species_tree, gene_root, recon_g, mpr_count = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
@@ -169,8 +182,8 @@ def plot_k_improvement(scores, initial_k, absolute, raw):
 
 def get_ki_data(trees, args):
     assert args.k == 1
-    metric = ClusterUtil.mk_support_score
-    return get_scores(trees, metric, args)
+    mk_score = choose_score(args)
+    return get_scores(trees, mk_score, args)
 
 # # # #
 # Correlate improvement with both metrics
@@ -188,7 +201,7 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
     improvements = collections.defaultdict(mk_default_list)
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
-        print("{}: {}/{}".format(f, i, n))
+        print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
         gene_tree, species_tree, gene_root, recon_g, mpr_count = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
@@ -233,8 +246,9 @@ def plot_s1_s2(improvements):
     colors=["red", "blue"]
     for i,s in enumerate(series):
         xs, ys = s
+        new_xs = [1.0/x for x in xs]
         color = colors[i]
-        plt.scatter(xs, ys, c=color, alpha=0.5)
+        plt.scatter(new_xs, ys, c=color, alpha=0.5)
     #plt.ylim((0, 1))
     #plt.xlim((0, 1))
     plt.xlabel("S1 improvement")
@@ -245,9 +259,8 @@ def plot_s1_s2(improvements):
 
 def get_s1_s2_data(trees, args):
     #cluster_names = ["PDV", "Event Support"]
-    #cluster_metrics = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
-    cluster_mk_scores = [ClusterUtil.mk_support_score]
-    #eval_names = ["PDV", "Event Support"]
+    cluster_mk_scores = [choose_score(args)]
+    #cluster_mk_scores = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
     eval_mk_scores = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
     return get_improvements(trees, cluster_mk_scores, eval_mk_scores, args)
 
@@ -260,7 +273,7 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
     ftrees = []
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
-        print("{}: {}/{}".format(f, i, n))
+        print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
         gene_tree, species_tree, gene_root, recon_g, mpr_count = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
@@ -324,8 +337,7 @@ def plot_n_improvement(series):
 
 def get_ni_data(trees, args):
     assert args.k == 1
-    mk_score = ClusterUtil.mk_support_score
-    #mk_score = ClusterUtil.mk_pdv_score
+    mk_score = choose_score(args)
     return get_n_improvements(trees, mk_score, args)
 
 #MAIN
@@ -362,3 +374,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
