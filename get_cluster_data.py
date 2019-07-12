@@ -1,6 +1,8 @@
 import ClusterUtil
 import ClusterAgg
 import shutil
+
+import random
 from pathlib import Path
 
 def has_n_mprs(tree_file, d,t,l, nmprs):

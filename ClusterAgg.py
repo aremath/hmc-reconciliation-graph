@@ -46,6 +46,8 @@ def process_args():
         help="Correlate the improvement with the number of clusters.")
     which_plot.add_argument("--ni", action="store_true",
         help="Correlate the improvement with the number of splits used.")
+    which_plot.add_argument("--mpri", action="store_true",
+        help="Correlate the improvement with the number of MPRs.")
     score = parser.add_mutually_exclusive_group(required=True)
     score.add_argument("--pdv", action="store_true",
         help="Use the weighted average distance to evaluate clusters.")
@@ -99,6 +101,51 @@ def cluster(recon_g, gene_root, score, mpr_count, args, max_splits):
         return ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k, max_splits)
     else:
         assert False
+
+# # # #
+# Correlate improvement with number of mprs
+# # # #
+
+def get_scores_mprs(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
+    nmprs = []
+    scores = []
+    ftrees = []
+    n = len(tree_files)
+    for (i, f) in enumerate(tree_files):
+        print("{}: {}/{}".format(f, i+1, n))
+        # Get the recon graph + other info
+        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+            ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
+        # Only care about trees with a certain number of MPRs
+        if mpr_count < min_mprs:
+            continue
+        score = mk_score(species_tree, gene_tree, gene_root)
+        t = timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout, max_splits)
+        if t is None:
+            print("{} timed out".format(f))
+            continue
+        _,tree_scores = t
+        nmprs.append(mpr_count)
+        scores.append((tree_scores[0], tree_scores[1]))
+        ftrees.append(f)
+    return (nmprs, scores), ftrees
+
+def plot_mprs_improvement(data, initial_k):
+    nmprs, scores = data
+    improvements = [ClusterUtil.calc_improvement(s[1], s[0]) for s in scores]
+    plt.scatter(nmprs, improvements, alpha=0.5)
+    title = "Absolute Improvement by Number of MPRs"
+    plt.xlabel("Number of MPRs")
+    plt.xscale("log")
+    plt.ylabel("Improvement")
+    plt.title(title)
+    plt.savefig("nmpr_improvement_plot.pdf", bbox_inches="tight")
+    plt.clf()
+
+def get_mpri_data(trees, args):
+    assert args.k == 1
+    mk_score = choose_score(args)
+    return get_scores_mprs(trees, mk_score, args)
 
 # # # #
 # Correlate improvement with number of clusters
@@ -335,21 +382,98 @@ def plot_n_improvement(series):
     plt.savefig("n_improvement_plot.pdf", bbox_inches="tight")
     plt.clf()
 
+def max_change(l):
+    max_change = 0
+    for l1, l2 in itertools.product(l, repeat=2):
+        change = abs(l1 - l2)
+        if change > max_change:
+            max_change = change
+    return max_change
+
+def is_flatline(ys):
+    if len(ys) < 2:
+        return False
+    lastval = ys[-1]
+    if ys[-2] == ys[-1]:
+        return True
+
+def plot_ni_changes(series):
+    final_xs = []
+    final_ys = []
+    max_x = max([max(s[0]) for s in series])
+    for threshold in range(max_x):
+        # Find the number of changed elements
+        flatlined = 0
+        for xs, ys in series:
+            # All the y-values where the x-value is less than threshold
+            good_ys = [ys[i] for i,x in enumerate(xs) if x <= threshold]
+            # There are some points after the threshold. Did it reach the flatline before?
+            if len(good_ys) > 0 and len(ys) > len(good_ys):
+                if is_flatline(ys) and good_ys[-1] == ys[-1]:
+                    flatlined += 1
+            # All of the points are below the threshold. Did it flatline?
+            elif len(good_ys) > 0:
+                if is_flatline(ys):
+                    flatlined += 1
+        # Compute the ratio among families that could have changed.
+        final_xs.append(threshold)
+        # Ignore families with only one data point
+        n = len([s for s in series if len(s) > 1])
+        final_ys.append(float(flatlined) / n)
+    # Plot it!
+    plt.plot(final_xs, final_ys)
+    # The ratio is between 0 and 1
+    plt.ylim(0,1)
+    plt.xlabel("Threshold")
+    plt.ylabel("Fraction of Flatlined Families")
+    plt.title("Flatlined Families as a Function of N")
+    plt.savefig("ni_change_plot.pdf", bbox_inches="tight")
+    plt.clf()
+
+def plot_ni_variance(series):
+    final_xs = []
+    final_ys = []
+    max_x = max([max(s[0]) for s in series])
+    for threshold in range(max_x):
+        variances = []
+        # Find the variance after the threshold for each series
+        for xs, ys in series:
+            # All the y-values where the x-value is greater than threshold
+            good_ys = [ys[i] for i,x in enumerate(xs) if x >= threshold]
+            #print(len(good_ys))
+            #if len(good_ys) > 0:
+            if len(good_ys) > 1:
+                variances.append(max_change(good_ys))
+                #variances.append(np.var(good_ys))
+        # Average them and keep the data
+        if len(variances) > 0:
+            final_xs.append(threshold)
+            final_ys.append(np.mean(variances))
+    # Plot it!
+    plt.plot(final_xs, final_ys)
+    plt.xlabel("Threshold")
+    #plt.ylabel("Maximum Variance")
+    #plt.title("Maximum Variance of Improvement")
+    plt.ylabel("Average of Max Difference of Improvement")
+    plt.title("")
+    plt.savefig("ni_variance_plot.pdf", bbox_inches="tight")
+    plt.clf()
+
 def get_ni_data(trees, args):
     assert args.k == 1
     mk_score = choose_score(args)
     return get_n_improvements(trees, mk_score, args)
 
 #MAIN
-#TODO: just do all the required calculations ahead of time
-# then choose which plot to create?
 
 def main():
     args = process_args()
     p = Path(args.input)
+    # If the input is a file, unpickle and use it as data
     if p.is_file():
         with open(str(p), "r") as infile:
             ftrees, data = pickle.load(infile)
+    # Otherwise, calculate the data from the trees in the input folder
     else:
         trees = get_tree_files(args.input)
         # Each alg returns some data and a list of tree files that finished
@@ -361,13 +485,21 @@ def main():
             data, ftrees = get_ki_data(trees, args)
         if args.ni:
             data, ftrees = get_ni_data(trees, args)
+        if args.mpri:
+            data, ftrees = get_mpri_data(trees, args)
+    # Now generate pretty plots
     if args.s1s2:
         plot_s1_s2(data)
     if args.ki:
         plot_k_improvement(data, args.k, args.absolute, False)
     if args.ni:
         plot_n_improvement(data)
-    # Dump the data
+        plot_ni_variance(data)
+        plot_ni_changes(data)
+    if args.mpri:
+        plot_mprs_improvement(data, args.k)
+    # Dump the data to the output file
+    # NOTE: plotting functions should not alter the data
     if args.output is not None:
         with open(args.output, "w") as outfile:
             pickle.dump((ftrees, data), outfile)
