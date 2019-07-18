@@ -1,6 +1,4 @@
-# dtldiameter
-
-Note that all of the included code was created using Python 2.7. Users wishing to run these programs on a later version of Python may experience errors.
+This code is for Python version 2.7.
 
 ## How to use DTLReconGraph.py
 
@@ -11,13 +9,13 @@ After typing `python DTLReconGraph.py`, enter the values for:
   * The name of the file in which the data are stored and
   * The costs of duplication, transfer, and loss, 
   
-in that order. If the user doesn't give input in the expected form, a usage statement will be displayed showing the user what inputs to enter and how to enter them. Note that the data file should include: 
+in that order. The data file should include: 
   * Two newick trees (formatted, for example, as ((C,D)B,E)A if A has children B and E and B has children C and D) on separate lines, with the species/host tree given first and the gene/parasite tree second, and
   * Mappings between all of the tips of the two trees (formatted, for example, c:C; d:D; e:E if c maps to C, d to D and e to E), with a different one on each line.
 
 The output is:
   * Two Python dictionaries in the format {(parent, child):(parent, child, child 1 of child, child 2 of child):, ...}, where parent is a node in the tree, child is one of parent's children, and children 1 and 2 of child represent children of the child of parent (in other words, grandchildren of the parent) - one for each of the two trees used as input. This is essentially a dictionary representation of the two trees given as input;
-  * A Python dictionary with mapping nodes as keys and lists of event nodes that apply to those mapping nodes in a Maximum Parsimony Reconciliation as values, which has the format {(gene node, species node): [(event string, resulting mapping node 1, resulting mapping node 2), minimum cost], ...}. In this representation, the gene and species node values represent the nodes in the given newick trees that are being mapped to each other in the reconciliation; the event string is a character ('D', 'T', 'L', 'C', or 'S', representing duplication, transfer, loss, contemporary event, and speciation, respectively) representing the event that those mapped nodes undergo; lastly, the resulting mapping nodes are the mappings that are induced in the next 'level' of the reconciliation graph as a result of the given event;
+  * A Python dictionary with mapping nodes as keys and lists of their event node children as values. This has the format {(gene node, species node): [(event string, resulting mapping node 1, resulting mapping node 2), minimum cost], ...}. The event string is 'D', 'T', 'L', 'C', or 'S', representing duplication, transfer, loss, contemporary event, and speciation, respectively. Lastly, the resulting mapping nodes are the mappings that are induced as a result of the given event;
   * The number of Maximum Parsimony Reconciliations for the given data set and costs, as an integer
   * A list of mapping nodes we could use to root the gene tree to produce a maximum parsimony reconciliation
 
@@ -27,11 +25,11 @@ The output is:
 
 #### DP
 
-DP is the workhorse of the code - it utilizes several helper functions to actually perform computations and implement the algorithm given in the technical report titled "HMC CS Technical Report CS-2011-1: Faster Dynamic Programming Algorithms for the Cophylogeny Reconstruction Problem". For more details on the algorithm itself, see that report and/or the comments/docstrings included in the file. Given host and parasite trees, tip mappings, and costs for duplication, transfer, and loss, DP implements this algorithm and returns the DTL maximum parsimony reconciliation graph as a dictionary, the total cost associated with the best reconciliation for the given D, T, and L costs, the number of reconciliations for the given trees and tip mappings, and a list of all possible mapping nodes for the root of the gene tree that could be used in an MPR (see the outputs discussed in the section on using this code from the command line for more detail on the output format).
+DP implements the algorithm given in the technical report titled "HMC CS Technical Report CS-2011-1: Faster Dynamic Programming Algorithms for the Cophylogeny Reconstruction Problem". Given host and parasite trees, tip mappings, and costs for duplication, transfer, and loss, DP returns the DTL maximum parsimony reconciliation graph as a dictionary, the total cost associated with the best reconciliation for the given D, T, and L costs, the number of reconciliations for the given trees and tip mappings, and a list of all possible mapping nodes for the root of the gene tree that could be used in an MPR (see the outputs discussed in the section on using this code from the command line for more detail on the output format).
 
 #### Reconcile
 
-Reconcile is the more practically useful function. Since the data are implemented as newick trees and mappings, reconcile utilizes a separate module that both handles getting the data from a separate file and reformats the inputs to work nicely with DP. Reconcile reformats the species and gene trees to match the output format given in the section on running from the command line, and prints out these trees along with the reconciliation graph, the number of Maximum Parsimony Reconciliations, and a list of mappings of gene nodes onto species nodes that could produce an MPR.
+Reconcile is the more practically useful function. Since the data are implemented as newick trees and mappings, reconcile utilizes a separate module that both handles getting the data from a file and reformatting the inputs. Reconcile reformats the species and gene trees to match the output format given in the section on running from the command line, and prints out these trees along with the reconciliation graph, the number of Maximum Parsimony Reconciliations, and a list of mappings of gene nodes onto species nodes that could produce an MPR.
 
 ## How to use RunTests.py
 
@@ -112,22 +110,7 @@ To calculate 100 random medians of the entire TreeLifeData dataset, make a warni
 
 ### Via Interactive Mode:
 
-#### Single Files
-
-To calculate the diameter for a single file in interactive mode, call the following function:
-> calculate_diameter_from_file(filename, D, T, L, log=None, debug=False, verbose=True, zero_loss=False, median=False,
-                                 worst_median=False, median_cluster=0, median_diameter=False)
-
-The arguments in this function are similar to the command line option `calc`. `filename` is the path to the file that will be reconciled by `DTLReconGraph` and the DTL Diameter calculated for. `D`, `T`, and `L` are the event costs, and `log` is the a string containing path to the csv file used for logging (use `None` for no logging).
-
-The rest of the flags and options are identical to the command line.
-
-#### Many Files
-
-To calculate a set of numbered files, use this function:
-> repeatedly_calculate_diameter(file_pattern, start, end, d, t, l, log=None, debug=False, verbose=True, loud=False, zero_loss=False, median_count=False, worst_median=False, cluster=0, median_diameter=False)
-
-Where `file_pattern` is the pattern used to find the right files (as described in the command line `-i` flag section), `start` is the starting file number, `end` is the exclusive ending file number, and the rest of the parameters are the same as `calculate_diameter_from_file()`.
+To calculate the diameter for a single file in interactive mode, use `calculate_diameter_from_file`. To get the diameters for a set of numbered files, use `repeatedly_calculate_diameter`.
 
 ## How to Use DTLMedian.py
 

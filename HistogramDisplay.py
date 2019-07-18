@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import csv
 
-def plot_histogram(plot_file, histogram, width, tree_name, d, t, l):
+def plot_histogram(plot_file, histogram, width, tree_name, d, t, l, max_x=None, max_y=None, title=True):
+    # Set the max limits
+    if max_y is not None:
+        plt.ylim(top=float(max_y))
+    if max_x is not None:
+        plt.xlim(right=float(max_x))
     plt.bar(histogram.keys(), histogram.values(), width)
     # Force y-axis to use scientific notation
     plt.ticklabel_format(style="sci", axis="y", scilimits=(0,0))
@@ -16,16 +21,18 @@ def plot_histogram(plot_file, histogram, width, tree_name, d, t, l):
     plt.draw()
     ax = plt.gca()
     # matplotlib sure is intuitive and easy to use!
+    # Get the exponent text from the y-axis and format it into latex
     exponent_text = ax.get_yaxis().get_offset_text().get_text()
     exponent = float(exponent_text.split("e")[-1])
     latex_exponent = r"x$10^{%d}$" % exponent
-    # Don't display it because we're going to use it in the y-axis
+    # Don't display it because we're going to use it in the y-axis label
     ax.yaxis.offsetText.set_visible(False)
     # Set the labels
     plt.xlabel("Distance", fontsize=18)
     plt.ylabel("Number of MPR Pairs {}".format(latex_exponent), fontsize=18)
-    # y=1.08 is a hack to make the title display above 
-    plt.title("{} with costs D:{}, T:{}, L:{}".format(tree_name, d, t, l), y=1.08, fontsize=18)
+    # y=1.08 is a hack to make the title display above
+    if title:
+        plt.title("{} with costs D:{}, T:{}, L:{}".format(tree_name, d, t, l), y=1.08, fontsize=18)
     plt.savefig(plot_file, bbox_inches='tight')
     plt.clf()
 
