@@ -6,7 +6,6 @@ import argparse
 import signal
 from pathlib import Path
 import collections
-import csv
 import pickle
 import itertools
 import time
@@ -506,6 +505,40 @@ def is_flatline(ys):
     if ys[-2] == ys[-1]:
         return True
 
+def plot_ni_avg_delta(series, args):
+    final_xs = []
+    final_ys = []
+    max_x = max([max(s[0]) for s in series])
+    for threshold in range(max_x):
+        total_change = 0
+        n_changed = 0
+        for xs, ys in series:
+            # y-values bigger than threshold (ordered)
+            big_ys = [ys[i] for i,x in enumerate(xs) if x > threshold]
+            # y-values smaller than threshold (ordered)
+            small_ys = [ys[i] for i,x in enumerate(xs) if x <= threshold]
+            # If this has a point on either side of the line
+            if len(big_ys) > 0 and len(small_ys) > 0:
+                # The change over the threshold line
+                delta = abs(big_ys[0] - small_ys[-1])
+                total_change += delta
+                n_changed += 1
+        final_xs.append(threshold)
+        # Don't divide by zero!
+        if n_changed > 0:
+            avg_change = total_change / float(n_changed)
+        else:
+            avg_change = 0
+        final_ys.append(avg_change)
+    # Plot it!
+    plt.plot(final_xs, final_ys)
+    plt.ylim(0,0.07)
+    plt.xlabel("N")
+    plt.ylabel("Average Change in Improvement at N")
+    plt.title(mk_title("Average Change as a Function of N", args))
+    plt.savefig(mk_savename("ni_delta_plot", args), bbox_inches="tight")
+    plt.clf()
+
 def plot_ni_changes(series, args):
     final_xs = []
     final_ys = []
@@ -607,6 +640,7 @@ def main():
         plot_n_improvement(data, args)
         plot_ni_variance(data, args)
         plot_ni_changes(data, args)
+        plot_ni_avg_delta(data, args)
     if args.mpri:
         plot_mprs_improvement(data, args)
     if args.time:

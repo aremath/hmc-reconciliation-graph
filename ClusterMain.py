@@ -38,18 +38,24 @@ def process_args():
         help="The relative cost of a loss.")
     parser.add_argument("-k", type=int, metavar="<number_of_clusters>", required=True,
         help="How many clusters to create.")
-    parser.add_argument("--supportdist", action="store_true",
-        help="Use the event support distance. Default is PDV distance.")
+    # Specifies how far down to go when finding splits
     depth_or_n = parser.add_mutually_exclusive_group(required=True)
     depth_or_n.add_argument("--depth", type=int, metavar="<tree_depth>",
         help="How far down the graph to consider event splits.")
     depth_or_n.add_argument("--nmprs", type=int, metavar="<tree_depth>",
         help="How many MPRs to consider")
+    # What visualizations to produce
     vis_type = parser.add_mutually_exclusive_group(required=False)
     vis_type.add_argument("--pdv-vis", action="store_true",
         help="Visualize the resulting clusters using the PDV.")
     vis_type.add_argument("--support-vis", action="store_true",
         help="Visualize the resulting clusters using a histogram of the event supports.")
+    # Which objective function to use
+    score = parser.add_mutually_exclusive_group(required=True)
+    score.add_argument("--pdv", action="store_true",
+        help="Use the weighted average distance to evaluate clusters.")
+    score.add_argument("--support", action="store_true",
+        help="Use the weighted average event support to evaluate clusters.")
     args = parser.parse_args()
     return args
 
@@ -105,10 +111,12 @@ def pdv_vis(species_tree, gene_tree, gene_root, recon_g, cluster_gs, args):
 def main():
     args = process_args()
     # Choose the distance metric
-    if args.supportdist:
+    if args.support:
         mk_score = ClusterUtil.mk_support_score
-    else:
+    elif args.pdv:
         mk_score = ClusterUtil.mk_pdv_score
+    else:
+        assert False
     # Get the recon graph + other info
     gene_tree, species_tree, gene_root, recon_g, mpr_count = \
         ClusterUtil.get_tree_info(args.input, args.d,args.t,args.l)
