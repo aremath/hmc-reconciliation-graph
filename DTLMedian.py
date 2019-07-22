@@ -390,6 +390,26 @@ def usage():
 
     return 'usage: DTLMedian filename dup_cost transfer_cost loss_cost [-r] [-n]'
 
+def get_median_graph(recon_graph, postorder_gene_tree, postorder_species_tree, gene_tree_root, best_roots):
+    # Get a list of the mapping nodes in preorder
+    postorder_mapping_node_list = mapping_node_sort(postorder_gene_tree, postorder_species_tree,
+                                                    recon_graph.keys())
+    # Find the dictionary for frequency scores for the given mapping nodes and graph, and the given gene root
+    scores_dict = generate_scores(postorder_mapping_node_list[::-1], recon_graph, gene_tree_root)
+
+    # Now find the median and related info
+    median_graph, n_meds, roots_for_median = compute_median(recon_graph, scores_dict[0],
+                                                                     postorder_mapping_node_list, best_roots)
+    return median_graph, n_meds, roots_for_median
+
+def get_med_counts(median_reconciliation, roots_for_median):
+    # Initialize the dictionary that tells us how many medians can be spawned from a particular event node
+    med_counts = dict()
+
+    # Now fill it
+    for root in roots_for_median:
+        count_mprs(root, median_reconciliation, med_counts)
+    return med_counts
 
 def main():
     """
@@ -427,16 +447,9 @@ def main():
             postorder_species_tree, species_tree_root, species_node_count = Diameter.reformat_tree(species_tree,
                                                                                                    "hTop")
 
-            # Get a list of the mapping nodes in preorder
-            postorder_mapping_node_list = mapping_node_sort(postorder_gene_tree, postorder_species_tree,
-                                                            dtl_recon_graph.keys())
-
-            # Find the dictionary for frequency scores for the given mapping nodes and graph, and the given gene root
-            scores_dict = generate_scores(postorder_mapping_node_list[::-1], dtl_recon_graph, gene_tree_root)
-
-            # Now find the median and related info
-            median_reconciliation, n_meds, roots_for_median = compute_median(dtl_recon_graph, scores_dict[0],
-                                                                             postorder_mapping_node_list, best_roots)
+            # Compute the median reconciliation graph
+            median_reconciliation, n_meds, roots_for_median = get_median_graph(
+                    dtl_recon_graph, postorder_gene_tree, postorder_species_tree, gene_tree_root, best_roots)
 
             # We'll always want to output the median
             output.append(median_reconciliation)
@@ -447,15 +460,8 @@ def main():
 
             # Check if the user wants a random median
             if options.random:
-
-                # Initialize the dictionary that tells us how many medians can be spawned from a particular event node
-                med_counts = dict()
-
-                # Now fill it
-                for root in roots_for_median:
-                    count_mprs(root, median_reconciliation, med_counts)
-
-                # In case we may want it, calculate a random, uniformly sampled single-path median from the median recon
+                med_counts = get_med_counts(median_reconciliation, roots_for_median)
+                # Calculate a random, uniformly sampled single-path median from the median recon
                 random_median = choose_random_median_wrapper(median_reconciliation, roots_for_median, med_counts)
                 output.append(random_median)
 

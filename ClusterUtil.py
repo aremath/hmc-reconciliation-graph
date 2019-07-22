@@ -469,5 +469,5 @@ def get_tree_info(newick, d,t,l):
     gene_tree, gene_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
     species_tree, species_tree_root, species_node_count \
         = Diameter.reformat_tree(edge_species_tree, "hTop")
-    return gene_tree, species_tree, gene_root, dtl_recon_graph, mpr_count
+    return gene_tree, species_tree, gene_root, dtl_recon_graph, mpr_count, best_roots
 

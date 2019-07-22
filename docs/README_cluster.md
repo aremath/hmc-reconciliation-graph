@@ -18,6 +18,8 @@ The main program for computing a clustering of the MPR-space is `ClusterMain.py`
 
 * `--pdv-vis` or `--support-vis` specify a visualization type. If neither is used, no visualization will be generated. `--pdv-vis` generates the Pairwise Distance Vector for the original reconciliation graph and for each of the clusters found. `--support-vis` generates a histogram of event supports for the original recon graph and each cluster.
 
+* `--medians` prints out a random (uniformly sampled) median reconciliation for each cluster. The format is specified in a comment at the top of `DTLMedian.py` :(
+
 ## How to use `ClusterAgg.py`
 
 `ClusterAgg` generates aggregate statistics and plots regarding clustering for an entire set of `.newick` files.
@@ -38,7 +40,7 @@ The main program for computing a clustering of the MPR-space is `ClusterMain.py`
 
 Note that some of these parameters may not be used in certain of the tests. For example `--nmprs` is ignored when doing the sensitivity to N analysis because that test analyzes the clustering for multiple values of N.
 
-##### Analyses
+#### Analyses
 
 * `--s1s2` clusters according to a single objective function and then evaluates on both so that the two evaluations can be correlated. This serves as a way to measure the similarity between two objective functions: If theimprovement from one objective is highly correlated with the improvement from the other objective, then each objective can largely substitute for the other.
 

@@ -148,7 +148,7 @@ def get_times(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_split
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
-        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+        gene_tree, species_tree, gene_root, recon_g, mpr_count, _ = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
         # Only care about trees with a certain number of MPRs
         if mpr_count < min_mprs:
@@ -204,7 +204,7 @@ def get_scores_mprs(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
-        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+        gene_tree, species_tree, gene_root, recon_g, mpr_count, _ = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
         # Only care about trees with a certain number of MPRs
         if mpr_count < min_mprs:
@@ -254,7 +254,7 @@ def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_spli
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
-        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+        gene_tree, species_tree, gene_root, recon_g, mpr_count, _ = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
         # Only care about trees with a certain number of MPRs
         if mpr_count < min_mprs:
@@ -350,7 +350,7 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
-        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+        gene_tree, species_tree, gene_root, recon_g, mpr_count, _ = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
         # Only care about trees with a certain number of MPRs
         if mpr_count < min_mprs:
@@ -425,7 +425,7 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
     for (i, f) in enumerate(tree_files):
         print("{}: {}/{}".format(f, i+1, n))
         # Get the recon graph + other info
-        gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+        gene_tree, species_tree, gene_root, recon_g, mpr_count, _ = \
             ClusterUtil.get_tree_info(str(f), args.d,args.t,args.l)
         #print("MPR count: {}".format(mpr_count))
         # Only care about trees with a certain number of MPRs

@@ -1,6 +1,7 @@
 import ClusterUtil
 import ReconciliationVisualization as RV
 import HistogramDisplay
+import DTLMedian
 
 import argparse
 from pathlib import Path
@@ -38,6 +39,8 @@ def process_args():
         help="The relative cost of a loss.")
     parser.add_argument("-k", type=int, metavar="<number_of_clusters>", required=True,
         help="How many clusters to create.")
+    parser.add_argument("--medians", action="store_true", required=False,
+        help="Whether or not to print out medians for each cluster.")
     # Specifies how far down to go when finding splits
     depth_or_n = parser.add_mutually_exclusive_group(required=True)
     depth_or_n.add_argument("--depth", type=int, metavar="<tree_depth>",
@@ -108,6 +111,15 @@ def pdv_vis(species_tree, gene_tree, gene_root, recon_g, cluster_gs, args):
         return max(l.keys()), max(l.values())
     vis(species_tree, gene_tree, gene_root, recon_g, cluster_gs, args, mk_get_hist, plot_f, get_max)
 
+def mk_get_median(gene_tree, species_tree, gene_root, best_roots):
+    def get_median(graph):
+        median_graph, n_meds, median_roots = DTLMedian.get_median_graph(
+                graph, gene_tree, species_tree, gene_root, best_roots)
+        med_counts = DTLMedian.get_med_counts(median_graph, median_roots)
+        random_median = DTLMedian.choose_random_median_wrapper(median_graph, median_roots, med_counts)
+        return random_median
+    return get_median
+
 def main():
     args = process_args()
     # Choose the distance metric
@@ -118,7 +130,7 @@ def main():
     else:
         assert False
     # Get the recon graph + other info
-    gene_tree, species_tree, gene_root, recon_g, mpr_count = \
+    gene_tree, species_tree, gene_root, recon_g, mpr_count, best_roots = \
         ClusterUtil.get_tree_info(args.input, args.d,args.t,args.l)
 
     # Visualize the graphs
@@ -142,6 +154,13 @@ def main():
         pdv_vis(species_tree, gene_tree, gene_root, recon_g, graphs, args)
     if args.support_vis:
         support_vis(species_tree, gene_tree, gene_root, recon_g, graphs, args)
+    if args.medians:
+        get_median = mk_get_median(gene_tree, species_tree, gene_root, best_roots)
+        for i, g in enumerate(graphs):
+            m = get_median(g)
+            print("Median for Cluster {}:".format(i))
+            # TODO: print to a better file format?
+            print(m)
     # Statistics
     one_score = ClusterUtil.get_score_nodp([recon_g], score, mpr_counter)
     k_score = ClusterUtil.get_score_nodp(graphs, score, mpr_counter)
@@ -150,6 +169,7 @@ def main():
     print("New score: {}".format(k_score))
     print("Improvement:  {}".format(improvement))
 
+# Debug
 def main2():
     args = process_args()
     gene_tree, species_tree, gene_root, recon_g, mpr_count = \
