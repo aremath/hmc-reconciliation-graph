@@ -1,3 +1,5 @@
+import Histogram
+
 import numpy as np
 import matplotlib
 # Don't require an X-Server
@@ -71,18 +73,9 @@ def compute_stats(histogram):
     # Diameter of MPR-space
     # Average distance between MPRs and standard deviation
     diameter = max(histogram.keys())
-    #TODO: use the histogram methods from histogram.py
-    # Flattening is a bad idea because this array might be exponentially large.
-    flat_h = flatten(histogram)
-    flat_h = np.asarray(flat_h)
-    mean = flat_h.mean()
-    std = flat_h.std()
+    # Re-convert to a Histogram to calculate stats
+    h = Histogram.Histogram(histogram)
+    mean = h.mean()
+    std = h.standard_deviation()
     return diameter, mean, std
-
-def flatten(histogram):
-    l = []
-    for k, v in histogram.keys():
-        for i in range(v):
-            l.append(v)
-    return l
 

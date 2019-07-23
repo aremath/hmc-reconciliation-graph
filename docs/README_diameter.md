@@ -87,15 +87,15 @@ DTLMedian.py has the following usage pattern:
 
 > DTLMedian.py filename dup_cost transfer_cost loss_cost [-r] [-c]
 
-`filename` is the path to a `.newick` file containing the two trees and the tip mapping. The cost parameters specify the relative frequency of duplication, transfer and loss. By default, all valid calls will return the full median reconciliation, however the user may add to the output by including the options shown below.
+`filename` is the path to a `.newick` file containing the two trees and the tip mapping. The cost parameters specify the relative cost of duplication, transfer and loss which should be inversely proportional to the frequency of those events. By default, all valid calls will return the full median reconciliation, however the user may add to the output by including the options shown below.
 
 #### Optional Flags
 
-* -r or --random: adds a random single-path median reconciliation, drawn from the full median reconciliation, to the output
+* -r or --random: adds a random median MPR, drawn from the median reconciliation, to the output
 
-* -c or --count: adds the number of single-path medians that could be derived from the full median reconciliation to the output
+* -c or --count: adds the number of median MPRs that could be derived from the median reconciliation to the output
 
-If both of these options are selected, the order of the printed output is: the full median reconciliation, the number of medians, a randomly selected median.
+If both of these options are selected, the order of the printed output is: the median reconciliation, the number of medians, a randomly selected median.
 
 ## How To Use DataAnalysis.py
 

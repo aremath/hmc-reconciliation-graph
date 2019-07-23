@@ -24,7 +24,6 @@
 # equal to 2. Also, smaller functionality was added in early July, including the ability to calculate the
 # mean and median numbers of event nodes per mapping node.
 
-# All necessary import statements
 import sys
 
 from numpy import mean

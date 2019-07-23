@@ -53,3 +53,16 @@ Note that some of these parameters may not be used in certain of the tests. For 
 * `--mpri` shows how improvement (1 cluster to 2 clusters) varies with the number of MPRs.
 
 * `--time` determines aggregate timing information and computes how the running time varies with the number of MPRs.
+
+## How to Add an Objective
+
+To add a new objective function (we will refer to the objective by name as X for now), four things need to be done:
+
+* Add a `mk_X_score` function to `ClusterUtil.py`. For reference, use the `mk_support_score` and `mk_pdv_score` functions in that file. It should take in the species tree, gene tree, and gene root as parameters, and return a function that takes a graph and returns a number. The clustering algorithm uses gradient descent, so make sure that X is "good" when minimized. If X is good when maximized (like event support), you can use the negative.
+
+* Add a `calc_improvement_X` to `ClusterUtil.py`. For reference, use `calc_improvement_pdv` or `calc_improvement_support` from the same file. In general, if X is maximized, then this will be the ratio of the score for the larger number of clusters to the score for the smaller number of clusters. If it is to be minimized, then it will be the opposite ratio. If this is how improvement of X is defined, you may use one of the existing functions, but you may also make this more complicated if you have some other idea of what constitutes an increase in X.
+
+* Add a command line option for X to the `parse_args` function in `ClusterAgg.py` and/or `ClusterMain.py`. Add it to the `score` mutually exclusive group.
+
+* Edit the `choose_*` family of functions in `ClusterAgg.py`. These functions set up graph titles, filenames, etc. for each objective function. For `ClusterMain`, edit the top of `main` where `mk_score` is set to use your `mk_X_score` from `ClusterUtil.py` when the command line option you created is set.
+

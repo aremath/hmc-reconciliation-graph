@@ -85,6 +85,7 @@ def graph_split(g, root, depth):
     """ Find a set of sub-graphs by starting at the root and making every
         possible choice of event up to the given depth.
     """
+    # Base Case: 0 depth means just descend from the root choosing all events.
     if depth == 0:
         return [graph_sub(g, root)]
     else:

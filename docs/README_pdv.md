@@ -10,7 +10,7 @@ The main program for computing the Pairwise Distance Vector for a reconciliation
 
 * `-d`, `-t`, `-l` specify the duplication, transfer, and loss costs respectively.
 
-* `--histogram` specifies whether to generate a histogram. If a filename is provided, the histogram will be saved to that filename. Otherwise, a name related to the input filename is used.
+* `--histogram` specifies whether to generate a histogram. If a filename is provided, the histogram will be saved to that filename. Otherwise, a name related to the input filename is used. By default, the format is `.pdf`, but if the provided filename has a different extension, it will be saved as that format.
 
 * `--xnorm` normalizes the x-axis of the PDV so that the distances range between 0 and 1 (normalized to the diameter of MPR-space).
 
