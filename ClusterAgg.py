@@ -19,6 +19,10 @@ import matplotlib.pyplot as plt
 
 #TODO: if args.input is specified, then no need for d,t,l,input,etc.
 def process_args():
+    """
+    Parse the command-line arguments.
+    :return args <namespace> - the parsed arguments
+    """
     # Required arguments - input file, D T L costs
     parser = argparse.ArgumentParser("")
     parser.add_argument("--input", metavar="<filename>", required=True,
@@ -61,6 +65,7 @@ def process_args():
     args.raw = False
     return args
 
+# Timing stuff
 class TimeoutError(Exception):
     pass
 
@@ -68,6 +73,11 @@ def timeout_handler(signum, frame):
     raise TimeoutError
 
 def choose_score(args):
+    """
+    Choose which score to use based on the CLI choice.
+    :param args <namespace> - the parsed command-line args
+    :return <function> - the function factory for the score function for the appropriate score
+    """
     if args.pdv:
         return ClusterUtil.mk_pdv_score
     elif args.support:
@@ -76,6 +86,10 @@ def choose_score(args):
         assert False
 
 def choose_name(args):
+    """
+    Choose a string based on the CLI choice of objective
+    Used for naming files.
+    """
     if args.pdv:
         return "WAD"
     elif args.support:
@@ -84,6 +98,12 @@ def choose_name(args):
         assert False
 
 def mk_title(title, args):
+    """
+    Choose the title for plots based on the CLI choice of objective.
+    :param title <string> - the original title of the plot
+    :param args <namespace> - the parsed arguments
+    :return <string> - the title for that plot
+    """
     #return title + " ({})".format(choose_name(args))
     if args.pdv:
         return "Weighted Average Distance"
@@ -93,9 +113,17 @@ def mk_title(title, args):
         assert False
 
 def mk_savename(savename, args):
+    """
+    Choose a savename for the plot based on the CLI choice of objective
+    """
     return savename + "_{}.pdf".format(choose_name(args))
 
 def choose_imp(args):
+    """
+    Choose an improvement measure based on the choice of objective
+    :param args <namespace> - the parsed arguments
+    :return <function float,float->float> - the improvement scoring function
+    """
     if args.pdv:
         return ClusterUtil.calc_improvement_pdv
     elif args.support:
@@ -103,20 +131,42 @@ def choose_imp(args):
     else:
         assert False
 
-# (s0, s1), (s1, s2), ...
 def pairwise(iterable):
+    """
+    Iterate pairwise through an iterable so that s0, s1, s2, ...
+    becomes (s0, s1), (s1, s2), ...
+    :param iterable <iterable>
+    :return <iterable>
+    """
     a, b = itertools.tee(iterable)
     next(b, None)
     return itertools.izip(a, b)
 
 def get_tree_files(pathstr):
+    """
+    Get a list of pathlib Paths to all the .newick files in the given folder
+    :param pathstr <string> - path to a folder
+    :return tree_files [<Path>] - the .newick files in the specified folder.
+    """
     p = Path(pathstr)
     all_files = [f for f in p.glob("**/*") if f.is_file()]
     tree_files = [f for f in all_files if f.suffix==".newick"]
     return tree_files
 
-# Do the clustering with a timeout
 def timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout, max_splits):
+    """
+    Perform the clustering with a timeout - returns None if there were too many splits,
+    or the computation actually timed out.
+    :param recon_g <recon_graph>
+    :param gene_root <node>
+    :param score <function <recon_g>-><float>>
+    :param mpr_count <int> - the number of MPRs in recon_g
+    :param args <namespace>
+    :param timeout <int> - seconds to use before timing out
+    :param max_splits <int> - the maximum number of splits to consider before
+        assuming that the operation will time out.
+    :return c ([<recon_graph>], [<float>]) - refer to ClusterUtil.cluster_graph_n
+    """
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
     try:
@@ -126,8 +176,18 @@ def timeout_cluster(recon_g, gene_root, score, mpr_count, args, timeout, max_spl
     signal.alarm(0)
     return c
 
-# Actually perform the clustering
 def cluster(recon_g, gene_root, score, mpr_count, args, max_splits):
+    """
+    Choose (and perform) a clustering based on whether depth or nmprs is specified.
+    :param recon_g <recon_graph>
+    :param gene_root <node>
+    :param score <function <recon_g>-><float>>
+    :param mpr_count <int> - the number of MPRs in recon_g
+    :param args <namespace>
+    :param max_splits <int> - the maximum number of splits to consider before
+        assuming that the operation will time out.
+    :return ([<recon_graph>], [<float>]) - refer to ClusterUtil.cluster_graph_n
+    """
     if args.depth is not None:
         return ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k, max_splits)
     elif args.nmprs is not None:
@@ -140,6 +200,23 @@ def cluster(recon_g, gene_root, score, mpr_count, args, max_splits):
 # # # #
 
 def get_times(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
+    """
+    Collect timing data from the given trees
+    :param tree_files [<Path>] - the tree files to analyze
+    :param mk_score <function> - refer e.g. ClusterUtil.mk_support_score
+    :param args <namespace>
+    :param timeout <int> - the number of seconds to use before timing out
+    :param min_mprs <int> - the minimum number of MPRs a reconciliation should induce
+        before it is used in the data
+    :param max_splits <int> - if more than max_splits are induced, we assume that the
+        computation of clusters would have timed out.
+    :return (nmprs, times, n_timed_out) ([<int>], [<float>], <int>) - nmprs is a list
+        of the number of MPRs for each recon. times is a list of the computation times
+        for each recon. n_timed_out is the number that timed out (or induced more splits
+        than max_splits.
+    :return ftrees [<Path>] - the list of trees. This is ordered so that the data for
+        the tree at index i in ftrees is at index i in nmprs and times
+    """
     nmprs = []
     times = []
     ftrees = []
@@ -168,6 +245,11 @@ def get_times(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_split
     return (nmprs, times, n_timed_out), ftrees
 
 def analyze_times(data, args):
+    """
+    Compute aggregate stats and plots for timing data.
+    :param data - refer get_times for type and info
+    :param args <namespace>
+    """
     nmprs, times, n_timed_out = data
     time_mean = np.mean(times)
     time_std = np.std(times)
@@ -188,6 +270,11 @@ def analyze_times(data, args):
     plt.clf()
 
 def get_time_data(trees, args):
+    """
+    Perform the timing computations. Wrapper for get_times.
+    :param trees [<Path>] - the tree files to process
+    :param args <namespace>
+    """
     assert args.k == 1
     mk_score = choose_score(args)
     return get_times(trees, mk_score, args)
@@ -197,6 +284,13 @@ def get_time_data(trees, args):
 # # # #
 
 def get_scores_mprs(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
+    """
+    Get the data for correlating improvement with number of MPRs
+    :param - refer get_times for info on the parameters
+    :return (nmprs, scores) ([<int>], [(<float>, <float)]) - nmprs is the number of MPRs
+        for each tree, scores is the last two entries of the scores list for each tree
+    :return ftrees [<Path>] - refer get_times
+    """
     nmprs = []
     scores = []
     ftrees = []
@@ -214,13 +308,18 @@ def get_scores_mprs(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max
         if t is None:
             print("{} timed out".format(f))
             continue
-        _,tree_scores = t
+        _,tree_scores,_ = t
         nmprs.append(mpr_count)
         scores.append((tree_scores[0], tree_scores[1]))
         ftrees.append(f)
     return (nmprs, scores), ftrees
 
 def plot_mprs_improvement(data, args):
+    """
+    Plot the correlation between number of MPRs and improvement
+    :param data - refer get_scores_nmprs
+    :param args <namespace>
+    """
     nmprs, scores = data
     imp = choose_imp(args)
     improvements = [imp(s[1], s[0]) for s in scores]
@@ -239,6 +338,11 @@ def plot_mprs_improvement(data, args):
     plt.clf()
 
 def get_mpri_data(trees, args):
+    """
+    Wraps get_scores_nmprs with some setup.
+    :param trees [<Path>]
+    :param args <namespace>
+    """
     assert args.k == 1
     mk_score = choose_score(args)
     return get_scores_mprs(trees, mk_score, args)
@@ -248,7 +352,15 @@ def get_mpri_data(trees, args):
 # # # #
 
 def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
+    """
+    Get all of the scores for given trees.
+    :param - refer get_times
+    :return scores [[<float>]] - The scores for each family for each value of k
+    :return local_scores [[(<float>, <float>)]] - The local scores for each family for each k
+    :return ftrees - refer get_times
+    """
     scores = []
+    local_scores = []
     ftrees = []
     n = len(tree_files)
     for (i, f) in enumerate(tree_files):
@@ -264,22 +376,43 @@ def get_scores(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_spli
         if t is None:
             print("{} timed out".format(f))
             continue
-        _,tree_scores = t
+        _,tree_scores,tree_local_scores = t
         scores.append(tree_scores)
+        local_scores.append(tree_local_scores)
         ftrees.append(f)
-    return scores, ftrees
+    return (scores, local_scores), ftrees
 
 def get_top_n(scores, trees, n, imp):
+    """
+    Given a list of trees and a list of scores, give the top n trees sorted
+    by improvement
+    :param scores [[<float>]] - per get_scores
+    :param trees [<Path>] - per get_scores
+    :param n <int> - the number of trees to get
+    :imp <function <float>,<float> -> <float>> - How to measure improvement
+    :return [<Path>] - the top n most improved from trees
+    """
     ztrees = zip(trees, scores)
     ztrees = sorted(ztrees, key=lambda x: imp(x[1][1], x[1][0]))
     return [x[0] for x in ztrees[-n:]]
 
 # Scores relative to the previous score
 def scores_to_improvements_relative(scores, imp):
+    """
+    Make a list of relative improvements from a list of scores.
+    Each improvement is relative to the previous score.
+    :param scores [[<float>]] - per get_scores
+    :param imp <function <float>,<float> -> <float>> - How to measure improvement
+    :return [[<float>]] - The improvements for each tree
+    """
     return [[imp(big,small) for small,big in pairwise(s)] for s in scores]
 
 # Scores relative to the score for one cluster
 def scores_to_improvements_absolute(scores, imp):
+    """
+    Same as scores_to_improvements_relative, but improvement is always
+    measured against the score for one cluster.
+    """
     # The score for one cluster
     improvements = []
     for s in scores:
@@ -291,11 +424,21 @@ def scores_to_improvements_absolute(scores, imp):
         improvements.append(s_improvement)
     return improvements
 
-# Just the raw weighted average scores
 def scores_to_improvements_raw(scores):
+    """
+    Just the raw weighted average scores
+    :param scores [[float]] - per get_scores
+    :return [[float]] - the negative - designed specifically to
+        un-negate the avg. support.
+    """
     return [[-1*s for s in series] for series in scores]
 
 def plot_k_improvement(scores, args):
+    """
+    Plot the relationship between k and improvement.
+    :param scores [[<float>]] - per get_scores
+    :param args <namespace>
+    """
     imp = choose_imp(args)
     if args.absolute:
         improvements = scores_to_improvements_absolute(scores, imp)
@@ -321,13 +464,78 @@ def plot_k_improvement(scores, args):
         plt.plot(xs,ys, c="blue", marker="o", alpha=0.1)
     plt.ylim((0.95,2.4))
     plt.xlim((1.8,12))
-    plt.xlabel("K")
+    plt.xlabel("k")
     plt.ylabel(yax)
     plt.title(mk_title(title, args))
     plt.savefig(mk_savename("k_improvement_plot", args), bbox_inches="tight")
     plt.clf()
 
+def local_scores_to_improvements(local_scores, imp):
+    """
+    Turn the local scores into improvements
+    :param local_scores - refer ClusterUtil.combine
+    :param imp <function> - refer ClusterUtil.calc_improvement_support
+    :return [[float]] - The improvements for each family for each k
+    """
+    return [[imp(x[0], x[1]) for x in s] for s in local_scores]
+
+def get_avg_local_imps(imps):
+    """
+    Get the average local improvement at each k
+    :param imps [[float]] - the local improvements
+    :return [float] - Average of ^ over each family.
+    """
+    avgs = []
+    max_k = max([len(s) for s in imps])
+    for i in range(max_k):
+        total = 0
+        n = 0
+        for s in imps:
+            if len(s) > i:
+                total += s[i]
+                n += 1
+        avgs.append(total / float(n))
+    return avgs
+
+def plot_local_improvement(local_scores, args):
+    """
+    Plot the relationship between k and local improvement
+    :param local_scores - refer ClusterUtil.combine
+    :param args <namespace>
+    """
+    imp = choose_imp(args)
+    improvements = local_scores_to_improvements(local_scores, imp)
+    print(get_avg_local_imps(improvements))
+    for series in improvements:
+        xs = []
+        ys = []
+        for k, imp in enumerate(series):
+            xs.append(k + args.k)
+            ys.append(imp)
+        plt.plot(xs,ys, c="blue", marker="o", alpha=0.1)
+    plt.ylim((0.95,2.4))
+    plt.xlim((0.8,12))
+    plt.xlabel("k")
+    plt.ylabel("Local improvement")
+    plt.title(mk_title("Local Improvement with k", args))
+    plt.savefig(mk_savename("k_improvement_plot_local", args), bbox_inches="tight")
+    plt.clf()
+
+def plot_ki(data, args):
+    """
+    Wrapper - does both the local and the global improvement plots
+    relative to k.
+    :param data - refer get_scores
+    :param args <namespace> - passed through
+    """
+    scores, local_scores = data
+    plot_k_improvement(scores, args)
+    plot_local_improvement(local_scores, args)
+
 def get_ki_data(trees, args):
+    """
+    Wraps get_scores
+    """
     assert args.k == 1
     mk_score = choose_score(args)
     return get_scores(trees, mk_score, args)
@@ -342,6 +550,19 @@ def mk_default_list():
 
 # 1200 s = 20 minutes
 def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeout=1200, min_mprs=1000, max_splits=200):
+    """
+    Get data for relating each score.
+    :param - refer get_times.
+    :param cluster_mk_scores [<function>] - score factories to use to make the clusters.
+        Refer ClusterUtil.mk_support_score.
+    :param eval_mk_scores [<function>] - score factories to use to evaluate the clusters.
+        Refer ClusterUtil.mk_support_score.
+    :return improvements <dict <int> -> <dict> <int> -> [<float>]> - First key is the
+        index of the objective function that was used to create the clusters. Second key
+        is the index of the objective function that was used to evaluatie the clusters.
+        Value is list of improvements corresponding to each tree.
+    :return ftrees - refer get_times
+    """
     # Key: clustering method index. Value: list of trees that finished
     ftrees = collections.defaultdict(list)
     # Keys: clustering method index, evaluation method index. Value: list of improvements
@@ -369,7 +590,7 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
                 print("{} timed out".format(f))
                 continue
             ftrees[i1].append(f)
-            graphs,_ = t
+            graphs,_,_ = t
             # Evaluate the clustering for each evaluation score
             for i2, eval_score in enumerate(eval_scores):
                 one_score = one_scores[i2]
@@ -378,9 +599,17 @@ def get_improvements(tree_files, cluster_mk_scores, eval_mk_scores, args, timeou
                 improvements[i1][i2].append(improvement)
     return improvements, ftrees
 
-# Make plottable xs and ys for each evaluation metric
-# Specific to two dimensional output
 def transform_s1_s2(improvements):
+    """
+    Make plottable xs and ys for each evaluation metric from the
+    improvements dict.
+    NOTE: specific to two-dimensional output (meaning two
+        evaluation metrics)
+    :param improvements - refer get_improvements
+    :return series [([float], [float])] for each cluster creation
+        metric, the xs and ys are the evaluation (for each family)
+        on the first and the second evaluation metrics respectively.
+    """
     series = []
     for i, evals in enumerate(improvements.values()):
         xs = evals[0]
@@ -389,6 +618,11 @@ def transform_s1_s2(improvements):
     return series
 
 def plot_s1_s2(improvements, args):
+    """
+    Plot the two objectives against each other.
+    :param improvements - referene get_improvements
+    :param args <namespace>
+    """
     series = transform_s1_s2(improvements)
     colors=["red", "blue"]
     for i,s in enumerate(series):
@@ -407,6 +641,11 @@ def plot_s1_s2(improvements, args):
     plt.clf()
 
 def get_s1_s2_data(trees, args):
+    """
+    Wraps get_improvements. Sets up the eval and creation metrics first.
+    :param trees [<Path>] - the trees to process
+    :param args <namespace>
+    """
     #cluster_names = ["PDV", "Event Support"]
     cluster_mk_scores = [choose_score(args)]
     #cluster_mk_scores = [ClusterUtil.mk_pdv_score, ClusterUtil.mk_support_score]
@@ -418,6 +657,14 @@ def get_s1_s2_data(trees, args):
 # # # #
 
 def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, max_splits=200):
+    """
+    Get the data for correlating the initial number of clusters with
+    the improvement
+    :param - refer get_times
+    :return series [([int], [float])] - for each family, xs are list of the initial number of
+        clusters and ys are list of the improvements (cross-indexed)
+    :return ftrees - refer get_times
+    """
     imp = choose_imp(args)
     series = []
     ftrees = []
@@ -452,7 +699,7 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
                     continue
                 else:
                     old_ngs = len(gs)
-                    _, scores = ClusterUtil.combine(gs, score, args.k, mpr_counter)
+                    _, scores, _ = ClusterUtil.combine(gs, score, args.k, mpr_counter)
             except TimeoutError:
                 print("{} timed out".format(f))
                 continue
@@ -470,6 +717,11 @@ def get_n_improvements(tree_files, mk_score, args, timeout=1200, min_mprs=1000, 
     return series, ftrees
 
 def plot_n_improvement(series, args):
+    """
+    Plot the relationship between N and improvement
+    :param series - refer get_n_improvements
+    :param args <namespace>
+    """
     # Different color for each series
     n = len(series)
     norm = matplotlib.colors.Normalize(0, n+1)
@@ -491,6 +743,11 @@ def plot_n_improvement(series, args):
     plt.clf()
 
 def max_change(l):
+    """
+    Max (1D) distance between two elements of a list
+    :param l [<float>]
+    :return max_change <int>
+    """
     max_change = 0
     for l1, l2 in itertools.product(l, repeat=2):
         change = abs(l1 - l2)
@@ -499,6 +756,11 @@ def max_change(l):
     return max_change
 
 def is_flatline(ys):
+    """
+    Does the end of ys flatline?
+    :param ys [<float>]
+    :return <bool>
+    """
     if len(ys) < 2:
         return False
     lastval = ys[-1]
@@ -506,6 +768,11 @@ def is_flatline(ys):
         return True
 
 def plot_ni_avg_delta(series, args):
+    """
+    Plot the average change at each threshold point
+    :param series - refer get_n_improvements
+    :param args <namespace>
+    """
     final_xs = []
     final_ys = []
     max_x = max([max(s[0]) for s in series])
@@ -540,6 +807,11 @@ def plot_ni_avg_delta(series, args):
     plt.clf()
 
 def plot_ni_changes(series, args):
+    """
+    Plot the ratio of flatlined families at each threshold point.
+    :param series - refer get_n_improvements
+    :param args <namespace>
+    """
     final_xs = []
     final_ys = []
     max_x = max([max(s[0]) for s in series])
@@ -573,6 +845,12 @@ def plot_ni_changes(series, args):
     plt.clf()
 
 def plot_ni_variance(series, args):
+    """
+    Plot the variance of the maximum change of the points
+    above the threshold at each threshold point.
+    :param series - refer get_n_improvements
+    :param args <namespace>
+    """
     final_xs = []
     final_ys = []
     max_x = max([max(s[0]) for s in series])
@@ -602,12 +880,25 @@ def plot_ni_variance(series, args):
     plt.clf()
 
 def get_ni_data(trees, args):
+    """
+    Wraps get_n_improvements.
+    :param trees [<Path>]
+    :param args <namespace>
+    """
     assert args.k == 1
     mk_score = choose_score(args)
     return get_n_improvements(trees, mk_score, args)
 
-#MAIN
+# # # #
+# MAIN
+# # # #
 
+# This is the reason things are organized the way they are
+# Each analysis has a data-collection method and a data processing method
+# Although object-orienting them is probably more trouble than it's worth,
+# this allows us to separate gathering data from generating the plots.
+# Now you can replace doing the data collection with loading the data
+# directly from a saved file (if you have it)
 def main():
     args = process_args()
     p = Path(args.input)
@@ -635,7 +926,7 @@ def main():
     if args.s1s2:
         plot_s1_s2(data, args)
     if args.ki:
-        plot_k_improvement(data, args)
+        plot_ki(data, args)
     if args.ni:
         plot_n_improvement(data, args)
         plot_ni_variance(data, args)

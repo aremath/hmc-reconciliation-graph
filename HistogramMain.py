@@ -10,6 +10,10 @@ import time
 import math
 
 def process_args():
+    """
+    Parse the command line arguments.
+    :return <namespace> the parsed arguments.
+    """
     # Required arguments - input file, D T L costs
     parser = argparse.ArgumentParser("")
     parser.add_argument("--input", metavar="<filename>", required=True,
@@ -67,6 +71,19 @@ def process_args():
     return args
 
 def calc_histogram(newick, d, t, l, time_it, normalize=False, zero_loss=False):
+    """
+    Compute the PDV from a .newick file.
+    :param newick <string> - The newick file to reconcile
+    :param d <float> - the cost of a duplication
+    :param t <float> - ^^ transfer
+    :param l <float> - ^^ loss
+    :param time_it <bool> - collect timing info
+    :param normalize <bool> - normalize the histogram by the size of the gene tree
+    :param zero_loss <bool> - ignore loss events
+    :return diameter_alg_hist <Histogram> - the PDV for the given .newick
+    :return elapsed <float> - the time it took to compute the PDV
+        None if time_it is False.
+    """
     # From the newick tree create the reconciliation graph
     edge_species_tree, edge_gene_tree, dtl_recon_graph, mpr_count, best_roots \
         = DTLReconGraph.reconcile(newick, d, t, l)
@@ -98,6 +115,16 @@ def calc_histogram(newick, d, t, l, time_it, normalize=False, zero_loss=False):
     return diameter_alg_hist, elapsed
 
 def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
+    """
+    Transform the given histogram in various ways
+    :param hist <Histogram> - the histogram to transform
+    :param omit_zeros <bool> - omit the zero column of the histogram
+    :param xnorm <bool> - normalize the x-values of the histogram to [0,1]
+    :param ynorm <bool> - normalize the y-values of the histogram to [0,1]
+    :param cumulative <bool> - make the histogram cumulative
+    :return hist_cum <Histogram> - the transformed histogram
+    :return width <float> - the bin-width that should be used when plotting the histogram
+    """
     # Omit zeroes
     if omit_zeros:
         hist_zero = HistogramDisplay.omit_zeros(hist)
@@ -123,22 +150,27 @@ def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
     return hist_cum, width
 
 def main(args):
+    """
+    Compute the PDV and other information and save them / output them
+    :param args <namespace> - the CLI arguments
+    """
     hist, elapsed = calc_histogram(args.input, args.d, args.t, args.l, args.time)
+    hist = hist.histogram_dict
     if args.time:
         print("Time spent: {}".format(elapsed))
     # Calculate the statistics (with zeros)
     if args.stats:
-        n_mprs = hist.histogram_dict[0]
-        diameter, mean, std = HistogramDisplay.compute_stats(hist_zero)
+        n_mprs = hist[0]
+        diameter, mean, std = HistogramDisplay.compute_stats(hist)
         print("Number of MPRs: {}".format(n_mprs))
         print("Diameter of MPR-space: {}".format(diameter))
         print("Mean MPR distance: {} with standard deviation {}".format(mean, std))
     hist_new, width = transform_hist(hist, args.omit_zeros, args.xnorm, args.ynorm, args.cumulative)
     # Make the histogram image
     if args.histogram is not None:
-        HistogramDisplay.plot_histogram(args.histogram, hist.histogram_dict, width, Path(args.input).stem, args.d, args.t, args.l)
+        HistogramDisplay.plot_histogram(args.histogram, hist, width, Path(args.input).stem, args.d, args.t, args.l)
     if args.csv is not None:
-        HistogramDisplay.csv_histogram(args.csv, hist.histogram_dict)
+        HistogramDisplay.csv_histogram(args.csv, hist)
 
 if __name__ == "__main__":
     args = process_args()
