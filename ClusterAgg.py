@@ -505,16 +505,18 @@ def plot_local_improvement(local_scores, args):
     """
     imp = choose_imp(args)
     improvements = local_scores_to_improvements(local_scores, imp)
+    print("Average local improvements")
     print(get_avg_local_imps(improvements))
     for series in improvements:
         xs = []
         ys = []
         for k, imp in enumerate(series):
-            xs.append(k + args.k)
+            # 1 is offset since we want to show 1->2 improvement at x=2
+            xs.append(k + args.k + 1)
             ys.append(imp)
         plt.plot(xs,ys, c="blue", marker="o", alpha=0.1)
     plt.ylim((0.95,2.4))
-    plt.xlim((0.8,12))
+    plt.xlim((1.8,12))
     plt.xlabel("k")
     plt.ylabel("Local improvement")
     plt.title(mk_title("Local Improvement with k", args))

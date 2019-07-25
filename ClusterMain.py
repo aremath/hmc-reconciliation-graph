@@ -144,9 +144,9 @@ def main():
     score = mk_score(species_tree, gene_tree, gene_root)
     # Actually perform the clustering
     if args.depth is not None:
-        graphs,scores = ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k, 200)
+        graphs,scores,_ = ClusterUtil.cluster_graph(recon_g, gene_root, score, args.depth, args.k, 200)
     elif args.nmprs is not None:
-        graphs,scores = ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k, 200)
+        graphs,scores,_ = ClusterUtil.cluster_graph_n(recon_g, gene_root, score, args.nmprs, mpr_count, args.k, 200)
     else:
         assert False
     # Visualization
