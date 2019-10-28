@@ -457,16 +457,16 @@ def diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph_
                     verfier.verify_enter(uA, uB, hist)
                 enter_table[u][uA][uB] = hist
                 if debug:
-                    print "{0} -{1}-> {2}, Double-equal\t{3}\Hist:{4}".format(uA, ancestry, uB, hist_both_exit,
-                                                                                hist)
+                    print("{0} -{1}-> {2}, Double-equal\t{3}\Hist:{4}".format(uA, ancestry, uB, hist_both_exit,
+                                                                                hist))
 
         if debug:
             print_table_nicely(enter_table[u], ", ", "EnterTable({0})".format(u))
 
     if debug:
-        print "Exit Table A: {0}".format(exit_table_a)
-        print ""
-        print "Exit Table B: {0}".format(exit_table_b)
+        print("Exit Table A: {0}".format(exit_table_a))
+        print("")
+        print("Exit Table B: {0}".format(exit_table_b))
     # Now, the diameter of this reconciliation will be the maximum entry on the enter table.
     result = Histogram(None)
     for uA in enter_table[gene_tree_root]:
@@ -493,9 +493,9 @@ def print_table_nicely(table, deliminator, name="\t", dtype="map"):
     :return:            Nothing, but prints to the screen a lot.
     """
 
-    print ""
+    print("")
     if len(table) > 30:  # Don't spend too long displaying tables.
-        print "Table '{1}' is {0}x{0}, which is bigger than the max size of 30.".format(len(table), name)
+        print("Table '{1}' is {0}x{0}, which is bigger than the max size of 30.".format(len(table), name))
         return
 
     line = "\033[4m{0}\033[1m".format(name)  # Underline top row, bold column headers
@@ -506,7 +506,7 @@ def print_table_nicely(table, deliminator, name="\t", dtype="map"):
             line += "\t{0}".format(column)
         else:
             line += "\t{0}{1}{2}".format(str(column[0]), deliminator, str(column[1]))
-    print line + "\033[0m"
+    print(line + "\033[0m")
 
     row_num = 0  # Used to alternate row colors
 
@@ -528,5 +528,5 @@ def print_table_nicely(table, deliminator, name="\t", dtype="map"):
             line += str(table[row][column]) + "\t"
             if row == column:
                 line += line_color
-        print line
-    print "\033[0m"  # Return to default color
+        print(line)
+    print("\033[0m")  # Return to default color

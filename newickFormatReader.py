@@ -16,7 +16,8 @@
 # (topVertex, bottomVertex, leftEdgeName, rightEdgeName)
 
 # python libraries
-from cStringIO import StringIO
+import io
+from six import string_types
 
 # BioPython libraries
 from Bio import Phylo
@@ -38,7 +39,7 @@ def newickFormatReader(fileHandle):
         used by xscape and the tip associations are returned as a dictionary
         with parasite names as keys and host tips as values. """
 
-    if isinstance(fileHandle, basestring):
+    if isinstance(fileHandle, string_types):
         fileHandle = open(fileHandle, 'r')
         autoclose = True
     else:
@@ -65,7 +66,7 @@ def parseNewick(newickString, treeType):
     """ Queries the user for a newick file name and returns the contents
         of that file in the dictionary representation used by the xscape
         tools. """
-    tree = Phylo.read(StringIO(newickString), "newick")
+    tree = Phylo.read(io.StringIO(newickString), "newick")
     distanceDict = tree.depths(unit_branch_lengths=True)
     D = {}
     for clade in distanceDict:

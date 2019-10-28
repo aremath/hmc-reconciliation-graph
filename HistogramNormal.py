@@ -34,7 +34,7 @@ def timeout_handler(signum, frame):
     raise TimeoutError
 
 def sample_hist(hist, n):
-    s_v = sum(hist.values())
+    s_v = sum(list(hist.values()))
     # Do not sample if the histogram is smaller than the desired sample size
     if s_v < n:
         # The population for each key
@@ -43,8 +43,8 @@ def sample_hist(hist, n):
         r = reduce(operator.concat, key_population)
         return r
     else:
-        k = hist.keys()
-        v = hist.values()
+        k = list(hist.keys())
+        v = list(hist.values())
         # Convert v to a probability distribution
         p_v = [float(i)/s_v for i in v]
         # would use random.choices in 3.6
@@ -56,7 +56,7 @@ def hierarchical_cluster(hists):
 #TODO: consider smoothing
 # Although smoothing will remove even/odd parity differences.
 def hist_to_array(hist):
-    n = max(hist.keys())
+    n = max(list(hist.keys()))
     l = []
     for i in range(n):
         if i in hist:
@@ -106,7 +106,7 @@ def find_hists(pathstr, d, t, l, timeout=10, min_mprs=0, normalize=False, zero_l
             continue
         signal.alarm(0)
         h_d = hist.histogram_dict
-        s_v = sum(h_d.values())
+        s_v = sum(list(h_d.values()))
         # 20 is the minimum sample size for statistical testing to make sense
         # Also make sure it has above the minimum number of MPRs
         if s_v >= 20 and h_d[0] > min_mprs:

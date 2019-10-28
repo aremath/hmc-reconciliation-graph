@@ -178,9 +178,9 @@ class BFVerifier:
         # lambda (alg_hist, bf_hist, message) that deals with the error
         self.recongraph = recongraph
         def print_hist_diff(alg_hist, bf_hist, message):
-            print message
-            print "Histogram from Brute Force:", bf_hist
-            print "Histogram from Algorithm  :", alg_hist
+            print(message)
+            print("Histogram from Brute Force:", bf_hist)
+            print("Histogram from Algorithm  :", alg_hist)
         self.error_func = print_hist_diff
     
     def verify_enter(self, uA, uB, alg_enter_hist):

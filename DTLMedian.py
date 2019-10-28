@@ -475,7 +475,7 @@ def main():
         except ValueError:
             print(usage())
     else:
-        print usage()
+        print(usage())
 
 
 if __name__ == '__main__':

@@ -132,7 +132,7 @@ def transform_hist(hist, omit_zeros, xnorm, ynorm, cumulative):
         hist_zero = hist
     # Normalize the x values
     if xnorm:
-        width = 1 / float(max(hist_zero.keys()))
+        width = 1 / float(max(list(hist_zero.keys())))
         hist_xnorm = HistogramDisplay.normalize_xvals(hist_zero)
     else:
         width = 1

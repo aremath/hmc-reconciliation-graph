@@ -238,8 +238,8 @@ def run_single_calculation(filename, D, T, L, log=None, debug=False, verbose=Tru
       :return:              Nothing, but we output results to a csv file, or the screen"""
 
     # These statements check to make sure that all arguments were entered correctly.
-    assert isinstance(log, (str, unicode)) or log is None
-    assert isinstance(filename, (str, unicode))
+    assert isinstance(log, str) or log is None
+    assert isinstance(filename, str)
     assert isinstance(D, (int, float))
     assert isinstance(T, (int, float))
     assert isinstance(L, (int, float))
@@ -262,7 +262,7 @@ def run_single_calculation(filename, D, T, L, log=None, debug=False, verbose=Tru
     DTLReconGraph_time_taken = time.clock() - start_time
 
     if verbose:
-        print "Reconciliation Graph Made in \033[33m\033[1m{0} seconds\033[0m".format(DTLReconGraph_time_taken)
+        print("Reconciliation Graph Made in \033[33m\033[1m{0} seconds\033[0m".format(DTLReconGraph_time_taken))
 
     if save_graph:
         file_graph_name = os.path.split(filename)[1]
@@ -270,7 +270,7 @@ def run_single_calculation(filename, D, T, L, log=None, debug=False, verbose=Tru
         ReconGraphFileInterchange.save_recon_graph(dtl_recon_graph, file_graph_name)
         test_graph = ReconGraphFileInterchange.load_recon_graph(file_graph_name)
         if dtl_recon_graph != test_graph:
-            print "MPR DTL reconciliation graph was saved improperly!"
+            print("MPR DTL reconciliation graph was saved improperly!")
 
     # This list will contain all of the results we want recorded, as tuples.
     results = []
@@ -306,7 +306,7 @@ def run_single_calculation(filename, D, T, L, log=None, debug=False, verbose=Tru
         ReconGraphFileInterchange.save_recon_graph(median_reconciliation, file_graph_name)
         test_graph = ReconGraphFileInterchange.load_recon_graph(file_graph_name)
         if median_reconciliation != test_graph:
-            print "Median DTL reconciliation graph was saved improperly!"
+            print("Median DTL reconciliation graph was saved improperly!")
     if median_diameter:
         assert median_reconciliation != {}, "Can't compute median-space diameter without knowing the median reconciliation!"
         results += find_median_diameter(species_tree, gene_tree, gene_tree_root, median_reconciliation, debug)
@@ -322,9 +322,9 @@ def run_single_calculation(filename, D, T, L, log=None, debug=False, verbose=Tru
                                        best_roots, median_cluster)
 
     if verbose:
-        print "Results:"
+        print("Results:")
         for result in results:
-            print "\t{0}:\t\033[33m\033[1m{1}\033[0m".format(result[0], result[1])
+            print("\t{0}:\t\033[33m\033[1m{1}\033[0m".format(result[0], result[1]))
 
     # Now, we write our results to a csv file.
     if log is not None:
@@ -353,38 +353,38 @@ def run_iterative_calculations(file_pattern, start, end, d, t, l, log=None, debu
     """
     match = re.match("([^#]*)(#+)([^#]*)", file_pattern)
     if not match:
-        print "Filepath '" + file_pattern + "' not understood. Please enter the path to your files, with repeated hash marks" \
-                                            "(#'s) in place of sequential numbering."
+        print("Filepath '" + file_pattern + "' not understood. Please enter the path to your files, with repeated hash marks" \
+                                            "(#'s) in place of sequential numbering.")
         return
     fill = len(match.group(2))
     if fill < len(str(end - 1)) or fill < len(str(start)):
-        print "Starting or ending number is larger than '{1}' supports ({0})!".format((10 ** fill) - 1, file_pattern)
+        print("Starting or ending number is larger than '{1}' supports ({0})!".format((10 ** fill) - 1, file_pattern))
         return
-    print "Running {4} sequential jobs on files '{3}' with costs D = {0}, T = {1}, and L = {2}".format(d, t, l,
+    print("Running {4} sequential jobs on files '{3}' with costs D = {0}, T = {1}, and L = {2}".format(d, t, l,
                                                                                                        file_pattern,
-                                                                                                       end - start)
+                                                                                                       end - start))
     for i in range(start, end):
         cur_file = "{0}{1}{2}".format(match.group(1), str(i).zfill(fill), match.group(3))
         if not os.path.exists(cur_file):
-            print "(file '{0}' does not exist)".format(cur_file)
+            print("(file '{0}' does not exist)".format(cur_file))
             continue
 
-        print "Reconciling {0}".format(cur_file)
+        print("Reconciling {0}".format(cur_file))
 
         try:
             run_single_calculation(cur_file, d, t, l, log, debug, verbose, zero_loss, median_count, worst_median,
                                    cluster, median_diameter, save_graph, save_median_graph)
         except (KeyboardInterrupt, SystemExit):
-            print "\13Thank you for playing Wing Commander!"
+            print("\13Thank you for playing Wing Commander!")
             sys.exit()
 
         except:
             if loud:
-                print "\07"
+                print("\07")
             if verbose:
-                print traceback.print_exc(sys.exc_traceback)
-            print "Could not reconcile file '{0}'. Continuing, but please make sure the file was formatted correctly!" \
-                .format(cur_file)
+                print(traceback.print_exc(sys.exc_traceback))
+            print("Could not reconcile file '{0}'. Continuing, but please make sure the file was formatted correctly!" \
+                .format(cur_file))
 
 
 def main():

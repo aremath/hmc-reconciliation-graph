@@ -15,9 +15,9 @@ def graph_union(g1, g2):
     :return newg <recon_graph> - the unioned graph
     """
     newg = {}
-    for k,v in g1.iteritems():
+    for k,v in g1.items():
         newg[k] = v[:]
-    for k,v in g2.iteritems():
+    for k,v in g2.items():
         if k in newg:
             for e in v:
                 if e not in newg[k]:
@@ -33,7 +33,7 @@ def graph_is_subset(g1, g2):
     :params g1, g2 <recon_graph> - the graphs to check
     :return <bool>
     """
-    for k,v in g1.iteritems():
+    for k,v in g1.items():
         if k not in g2:
             return False
         for e in v:
@@ -195,7 +195,7 @@ def new_dp(dp, m1, m2):
             return i - 2
         assert False
     newdp = {}
-    for i, dist in dp.iteritems():
+    for i, dist in dp.items():
         # update the index for each index that does not involve m1 or m2
         if i not in [m1, m2]:
             newdp[new_index(i)] = dist
@@ -210,7 +210,7 @@ def new_dp(dp, m1, m2):
             return i - 2
         assert False
     newdp = {}
-    for i, dist in dp.iteritems():
+    for i, dist in dp.items():
         # update the index for each index that does not involve m1 or m2
         if i not in [m1, m2]:
             newdp[new_index(i)] = dist
@@ -234,7 +234,7 @@ def new_u_dp(u_dp, m1, m2):
             return i - 2
         assert False
     newdp = {}
-    for pair, dist in u_dp.iteritems():
+    for pair, dist in u_dp.items():
         i1, i2 = pair
         # update the index for each index pair that does not involve m1 or m2
         if i1 not in [m1, m2] and i2 not in [m1, m2]:
@@ -555,7 +555,7 @@ def avg_event_support(species_tree, gene_tree, g, gene_root):
         DTLMedian.generate_scores(list(reversed(preorder_mapping_nodes)), g, gene_root)
     # Take the average over each event
     total_support = 0
-    for support in event_support.itervalues():
+    for support in event_support.values():
         total_support += support
     return total_support / len(event_support)
 
@@ -605,7 +605,7 @@ def event_support_hist(species_tree, gene_tree, gene_root, graph):
     preorder_mapping_nodes = DTLMedian.mapping_node_sort(gene_tree, species_tree, graph.keys())
     event_support, count = \
         DTLMedian.generate_scores(list(reversed(preorder_mapping_nodes)), graph, gene_root)
-    supports = event_support.values()
+    supports = list(event_support.values())
     hist, bins = np.histogram(supports, bins=20, range=(0,1))
     total = np.sum(hist)
     return hist / float(total), bins
@@ -671,6 +671,7 @@ def get_tree_info(newick, d,t,l):
     # From the newick tree create the reconciliation graph
     edge_species_tree, edge_gene_tree, dtl_recon_graph, mpr_count, best_roots \
         = DTLReconGraph.reconcile(newick, d, t, l)
+    #print(mpr_count)
     # Reformat the host and parasite tree to use it with the histogram algorithm
     gene_tree, gene_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
     species_tree, species_tree_root, species_node_count \

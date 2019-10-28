@@ -613,7 +613,7 @@ def transform_s1_s2(improvements):
         on the first and the second evaluation metrics respectively.
     """
     series = []
-    for i, evals in enumerate(improvements.values()):
+    for i, evals in enumerate(list(improvements.values())):
         xs = evals[0]
         ys = evals[1]
         series.append((xs, ys))

@@ -26,7 +26,7 @@ def plot_histogram(plot_file, histogram, width, tree_name, d, t, l, max_x=None, 
         plt.ylim(top=float(max_y))
     if max_x is not None:
         plt.xlim(right=float(max_x))
-    plt.bar(histogram.keys(), histogram.values(), width)
+    plt.bar(list(histogram.keys()), list(histogram.values()), width)
     # Force y-axis to use scientific notation
     plt.ticklabel_format(style="sci", axis="y", scilimits=(0,0))
     # Find the exponent in order to put it in the ylabel
@@ -67,7 +67,7 @@ def normalize_xvals(histogram):
     :param histogram <dict>
     :return new_hist <dict> - the transformed histogram
     """
-    max_xval = float(max(histogram.keys()))
+    max_xval = float(max(list(histogram.keys())))
     if max_xval == 0:
         return histogram
     new_hist = { k/max_xval : v for k,v in histogram.items() }
@@ -79,7 +79,7 @@ def normalize_yvals(histogram):
     :param histogram <dict>
     :return new_hist <dict> - the transformed histogram
     """
-    total_yval = float(sum(histogram.values()))
+    total_yval = float(sum(list(histogram.values())))
     if total_yval == 0:
         return histogram
     new_hist = { k : v/total_yval for k,v in histogram.items() }
@@ -116,7 +116,7 @@ def compute_stats(histogram):
     """
     # Diameter of MPR-space
     # Average distance between MPRs and standard deviation
-    diameter = max(histogram.keys())
+    diameter = max(list(histogram.keys()))
     # Re-convert to a Histogram to calculate stats
     h = Histogram.Histogram(histogram)
     mean = h.mean()
